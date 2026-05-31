@@ -126,6 +126,8 @@ The adapter accesses Apple's iCloud services using the same APIs that are used b
 * (ticaki) iCloud Reminders are read and provided as data points (lists & reminders with due date, priority, and status)
 * (ticaki) Added Blockly sendTo blocks for creating, updating, completing, deleting, and querying iCloud Reminders
 
+[Older changelogs can be found there](CHANGELOG_OLD.md)
+
 ## License
 MIT License
 

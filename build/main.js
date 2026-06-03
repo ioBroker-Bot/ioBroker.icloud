@@ -1667,7 +1667,7 @@ class Icloud extends utils.Adapter {
   }
   // ── Reminders helpers ─────────────────────────────────────────────────────
   async refreshReminders() {
-    var _a, _b;
+    var _a, _b, _c;
     if (!this.icloud) {
       return;
     }
@@ -1690,9 +1690,11 @@ class Icloud extends utils.Adapter {
       }
       const changed = await remService.refresh();
       if (changed) {
+        const remObj = await this.getObjectAsync("reminders");
         await this.setObject("reminders", {
+          ...remObj != null ? remObj : {},
           type: "folder",
-          common: { name: "Reminders" },
+          common: { ...(_b = remObj == null ? void 0 : remObj.common) != null ? _b : {}, name: "Reminders" },
           native: { syncMap: remService.exportSyncMap() }
         });
       }
@@ -1709,7 +1711,7 @@ class Icloud extends utils.Adapter {
         );
       }
     } catch (err) {
-      const msg = (_b = err == null ? void 0 : err.message) != null ? _b : String(err);
+      const msg = (_c = err == null ? void 0 : err.message) != null ? _c : String(err);
       this.log.warn(`Reminders refresh failed: ${msg}`);
       if (msg.includes("Invalid global session") || msg.includes("INVALID_GLOBAL_SESSION")) {
         this.triggerSessionRecovery(msg);
@@ -1717,14 +1719,17 @@ class Icloud extends utils.Adapter {
     }
   }
   async persistRemindersSyncMap() {
+    var _a;
     if (!this.icloud || !this.remindersSyncMapLoaded) {
       return;
     }
     try {
       const remService = this.icloud.getService("reminders");
+      const remObj = await this.getObjectAsync("reminders");
       await this.setObject("reminders", {
+        ...remObj != null ? remObj : {},
         type: "folder",
-        common: { name: "Reminders" },
+        common: { ...(_a = remObj == null ? void 0 : remObj.common) != null ? _a : {}, name: "Reminders" },
         native: { syncMap: remService.exportSyncMap() }
       });
     } catch {
@@ -2155,7 +2160,7 @@ class Icloud extends utils.Adapter {
   }
   // ── Notes helpers ─────────────────────────────────────────────────────────
   async refreshNotes() {
-    var _a, _b;
+    var _a, _b, _c;
     if (!this.icloud) {
       return;
     }
@@ -2178,9 +2183,11 @@ class Icloud extends utils.Adapter {
       }
       const changed = await notesService.refresh();
       if (changed) {
+        const notesObj = await this.getObjectAsync("notes");
         await this.setObject("notes", {
+          ...notesObj != null ? notesObj : {},
           type: "folder",
-          common: { name: "Notes" },
+          common: { ...(_b = notesObj == null ? void 0 : notesObj.common) != null ? _b : {}, name: "Notes" },
           native: { syncMap: notesService.exportSyncMap() }
         });
       }
@@ -2195,19 +2202,22 @@ class Icloud extends utils.Adapter {
         );
       }
     } catch (err) {
-      const msg = (_b = err == null ? void 0 : err.message) != null ? _b : String(err);
+      const msg = (_c = err == null ? void 0 : err.message) != null ? _c : String(err);
       this.log.warn(`Notes refresh failed: ${msg}`);
     }
   }
   async persistNotesSyncMap() {
+    var _a;
     if (!this.icloud || !this.notesSyncMapLoaded) {
       return;
     }
     try {
       const notesService = this.icloud.getService("notes");
+      const notesObj = await this.getObjectAsync("notes");
       await this.setObject("notes", {
+        ...notesObj != null ? notesObj : {},
         type: "folder",
-        common: { name: "Notes" },
+        common: { ...(_a = notesObj == null ? void 0 : notesObj.common) != null ? _a : {}, name: "Notes" },
         native: { syncMap: notesService.exportSyncMap() }
       });
     } catch {
@@ -3182,11 +3192,17 @@ class Icloud extends utils.Adapter {
     const remService = this.icloud.getService("reminders");
     remService.resetSyncMap();
     this.remindersSyncMapLoaded = false;
-    this.extendObject("reminders", {
-      type: "folder",
-      common: { name: "Reminders" },
-      native: { syncMap: remService.exportSyncMap() }
-    }).then(() => {
+    this.getObjectAsync("reminders").then(
+      (remObj) => {
+        var _a;
+        return this.setObject("reminders", {
+          ...remObj != null ? remObj : {},
+          type: "folder",
+          common: { ...(_a = remObj == null ? void 0 : remObj.common) != null ? _a : {}, name: "Reminders" },
+          native: { syncMap: remService.exportSyncMap() }
+        });
+      }
+    ).then(() => {
       this.log.info("Reminders sync map reset \u2014 triggering full resync");
       return this.refreshReminders();
     }).then(() => {

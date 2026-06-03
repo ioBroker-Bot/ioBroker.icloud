@@ -2040,12 +2040,16 @@ class Icloud extends utils.Adapter {
 
             // Persist syncMap only when data actually changed
             if (changed) {
-                // Full replace via setObject (not extendObject): native.syncMap must be
-                // overwritten wholesale, otherwise a deep-merge would keep stale entries for
-                // reminders deleted in iCloud and resurrect them as ghost states on restore.
+                // Read-merge-write: getObject + setObject. setObject (not extendObject) because
+                // native.syncMap must be replaced wholesale — extendObject would deep-merge and
+                // leave stale entries for reminders deleted in iCloud (ghost states on restore).
+                // The spread of remObj preserves controller-managed fields (acl, from, ts) that a
+                // bare setObject would drop. Do not "simplify" this to { type, common, native }.
+                const remObj = await this.getObjectAsync('reminders');
                 await this.setObject('reminders', {
+                    ...(remObj ?? {}),
                     type: 'folder',
-                    common: { name: 'Reminders' },
+                    common: { ...((remObj?.common ?? {}) as ioBroker.OtherCommon), name: 'Reminders' },
                     native: { syncMap: remService.exportSyncMap() },
                 });
             }
@@ -2083,10 +2087,12 @@ class Icloud extends utils.Adapter {
         }
         try {
             const remService = this.icloud.getService('reminders');
+            const remObj = await this.getObjectAsync('reminders');
             // Full replace intentional — see the comment in the reminders refresh path above.
             await this.setObject('reminders', {
+                ...(remObj ?? {}),
                 type: 'folder',
-                common: { name: 'Reminders' },
+                common: { ...((remObj?.common ?? {}) as ioBroker.OtherCommon), name: 'Reminders' },
                 native: { syncMap: remService.exportSyncMap() },
             });
         } catch {
@@ -2619,11 +2625,13 @@ class Icloud extends utils.Adapter {
 
             // Persist syncMap only when data actually changed
             if (changed) {
-                // Full replace via setObject (not extendObject): native.syncMap must be
-                // overwritten wholesale; a deep-merge would keep stale entries for deleted notes.
+                const notesObj = await this.getObjectAsync('notes');
+                // setObject (full replace) is intentional: native.syncMap must be replaced
+                // wholesale; extendObject would deep-merge and keep stale entries for deleted notes.
                 await this.setObject('notes', {
+                    ...(notesObj ?? {}),
                     type: 'folder',
-                    common: { name: 'Notes' },
+                    common: { ...((notesObj?.common ?? {}) as ioBroker.OtherCommon), name: 'Notes' },
                     native: { syncMap: notesService.exportSyncMap() },
                 });
             }
@@ -2652,10 +2660,12 @@ class Icloud extends utils.Adapter {
         }
         try {
             const notesService = this.icloud.getService('notes');
+            const notesObj = await this.getObjectAsync('notes');
             // Full replace intentional — see the comment in the notes refresh path above.
             await this.setObject('notes', {
+                ...(notesObj ?? {}),
                 type: 'folder',
-                common: { name: 'Notes' },
+                common: { ...((notesObj?.common ?? {}) as ioBroker.OtherCommon), name: 'Notes' },
                 native: { syncMap: notesService.exportSyncMap() },
             });
         } catch {
@@ -3723,12 +3733,20 @@ class Icloud extends utils.Adapter {
         const remService = this.icloud.getService('reminders');
         remService.resetSyncMap();
         this.remindersSyncMapLoaded = false;
-        // Persist the cleared map so the next startup also does a full sync
-        this.extendObject('reminders', {
-            type: 'folder',
-            common: { name: 'Reminders' },
-            native: { syncMap: remService.exportSyncMap() },
-        })
+        // Persist the cleared map so the next startup also does a full sync.
+        // Read-merge-write (getObject + setObject), not extendObject: clearing the syncMap means
+        // removing keys from native.syncMap, which a deep-merging extendObject cannot do — it would
+        // leave the old lists/reminders behind and the reset would not actually take effect. The
+        // spread preserves controller-managed fields (acl, from, ts).
+        this.getObjectAsync('reminders')
+            .then(remObj =>
+                this.setObject('reminders', {
+                    ...(remObj ?? {}),
+                    type: 'folder',
+                    common: { ...((remObj?.common ?? {}) as ioBroker.OtherCommon), name: 'Reminders' },
+                    native: { syncMap: remService.exportSyncMap() },
+                }),
+            )
             .then(() => {
                 this.log.info('Reminders sync map reset — triggering full resync');
                 return this.refreshReminders();

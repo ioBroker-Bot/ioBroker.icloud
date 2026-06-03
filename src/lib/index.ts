@@ -224,7 +224,7 @@ export default class iCloudService extends EventEmitter {
             this.options.dataDirectory = path.join(os.homedir(), '.icloud');
         }
         this.cookieJar = new CookieJar();
-        this.fetch = fetchCookie(globalThis.fetch, this.cookieJar) as unknown as typeof globalThis.fetch;
+        this.fetch = fetchCookie(globalThis.fetch, this.cookieJar);
         this.authStore = new iCloudAuthenticationStore(this);
     }
     _log(level: number, ...args: unknown[]): void {

@@ -1,5 +1,7 @@
 {
 	"icloud adapter settings": "icloud的适配器设置",
+	"username": "Apple ID（用户名）",
+	"password": "密码",
 	"locationPointsHeader": "位置点",
 	"locationPoints": "位置列表",
 	"locationPointsHelp": "用于计算到 FindMy 设备的距离。",
@@ -10,6 +12,10 @@
 	"findMyEnabled": "Enable FindMy",
 	"findMyInterval": "Refresh interval (minutes)",
 	"findMyIntervalHelp": "How often FindMy devices are polled (1–120 minutes)",
+	"findMyIntervalExpertEnabled": "启用专家间隔（不推荐）",
+	"findMyIntervalExpertEnabledHelp": "允许设置小于一分钟的轮询间隔。不推荐：1 分钟间隔经过验证且稳定。Apple 的速率限制未知——轮询过于频繁可能会暂时封锁您的账户。",
+	"findMyIntervalExpert": "专家间隔（秒）",
+	"findMyIntervalExpertHelp": "轮询间隔（秒，30–120）。不推荐：1 分钟经过充分测试且稳定。间隔过短可能触发 Apple 的速率限制并暂时封锁您的账户。",
 	"calendarHeader": "Calendar",
 	"calendarEnabled": "Enable Calendar",
 	"calendarEventCount": "Number of upcoming events",

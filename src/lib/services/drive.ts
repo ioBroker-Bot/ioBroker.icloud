@@ -151,11 +151,11 @@ export class iCloudDriveNode {
             child.parentId = item.parentId;
             child.docwsid = item.docwsid;
             child.zone = item.zone ?? 'com.apple.CloudDocs';
-            child.dateCreated = new Date(item.dateCreated as unknown as string);
+            child.dateCreated = new Date(item.dateCreated);
             child.extension = item.extension;
-            child.dateModified = item.dateModified ? new Date(item.dateModified as unknown as string) : undefined;
-            child.dateChanged = item.dateChanged ? new Date(item.dateChanged as unknown as string) : undefined;
-            child.dateLastOpen = item.lastOpenTime ? new Date(item.lastOpenTime as unknown as string) : undefined;
+            child.dateModified = item.dateModified ? new Date(item.dateModified) : undefined;
+            child.dateChanged = item.dateChanged ? new Date(item.dateChanged) : undefined;
+            child.dateLastOpen = item.lastOpenTime ? new Date(item.lastOpenTime) : undefined;
             child.items = [];
             return child;
         });
@@ -375,11 +375,7 @@ export class iCloudDriveService {
         const uploadJson = (await uploadResponse.json()) as Array<{ document_id: string; url: string }>;
         const { document_id, url } = uploadJson[0];
         const formData = new FormData();
-        formData.append(
-            file.name,
-            new Blob([file.content as Uint8Array<ArrayBuffer>], { type: contentType }),
-            file.name,
-        );
+        formData.append(file.name, new Blob([file.content], { type: contentType }), file.name);
         const contentResponse = await this.service.fetch(url, { method: 'POST', body: formData });
         const contentJson = (await contentResponse.json()) as { singleFile: Record<string, unknown> };
         await this._updateContentws(folderDocwsid, contentJson.singleFile, document_id, file.name);

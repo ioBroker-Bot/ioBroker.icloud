@@ -826,7 +826,7 @@ class Icloud extends utils.Adapter {
    * @param locationPoints - configured location points for distance calculation
    */
   async refreshFindMyDevices(locationPoints) {
-    var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m, _n, _o, _p, _q, _r, _s, _t, _u, _v, _w;
+    var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m, _n, _o, _p, _q, _r, _s, _t, _u, _v;
     if (!this.icloud) {
       return;
     }
@@ -908,18 +908,13 @@ class Icloud extends utils.Adapter {
         }
         const numericId = this.getOrAssignFindMyNumericId(apiId);
         const safeId = `findme.${numericId}`;
-        {
-          const existingDeviceObj = await this.getObjectAsync(safeId);
-          await this.setObject(safeId, {
-            ...existingDeviceObj != null ? existingDeviceObj : {},
-            type: "device",
-            common: {
-              ...(_e = existingDeviceObj == null ? void 0 : existingDeviceObj.common) != null ? _e : {},
-              name: (_g = (_f = d.name) != null ? _f : d.deviceDisplayName) != null ? _g : apiId
-            },
-            native: { id: apiId, baUUID: d.baUUID }
-          });
-        }
+        await this.extendObject(safeId, {
+          type: "device",
+          common: {
+            name: (_f = (_e = d.name) != null ? _e : d.deviceDisplayName) != null ? _f : apiId
+          },
+          native: { id: apiId, baUUID: d.baUUID }
+        });
         const hasBattery = d.batteryStatus != null && d.batteryStatus !== "Unknown";
         const batteryStateDefs = hasBattery ? FINDMY_DEVICE_STATES : FINDMY_DEVICE_STATES.filter((def) => def.id !== "batteryLevel" && def.id !== "batteryCharging");
         for (const def of batteryStateDefs) {
@@ -949,7 +944,7 @@ class Icloud extends utils.Adapter {
             native: {}
           });
         }
-        if ((_h = d.features) == null ? void 0 : _h.SND) {
+        if ((_g = d.features) == null ? void 0 : _g.SND) {
           await this.extendObject(`${safeId}.ping`, {
             type: "state",
             common: {
@@ -972,7 +967,7 @@ class Icloud extends utils.Adapter {
             await this.extendObject(`${safeId}.features.${feat}`, {
               type: "state",
               common: {
-                name: (_i = FINDMY_FEATURE_NAMES[feat]) != null ? _i : feat,
+                name: (_h = FINDMY_FEATURE_NAMES[feat]) != null ? _h : feat,
                 type: "boolean",
                 role: "indicator",
                 read: true,
@@ -997,7 +992,7 @@ class Icloud extends utils.Adapter {
         }
         const _geoElapsed = loc ? Number(process.hrtime.bigint() - _geoT0) : 0;
         const vals = {
-          name: (_j = d.name) != null ? _j : "",
+          name: (_i = d.name) != null ? _i : "",
           deviceClass: d.deviceClass,
           deviceDisplayName: d.deviceDisplayName,
           modelDisplayName: d.modelDisplayName,
@@ -1015,18 +1010,18 @@ class Icloud extends utils.Adapter {
           isConsideredAccessory: d.isConsideredAccessory,
           deviceWithYou: d.deviceWithYou,
           coordinates: loc ? `${loc.latitude};${loc.longitude}` : null,
-          latitude: (_k = loc == null ? void 0 : loc.latitude) != null ? _k : null,
-          longitude: (_l = loc == null ? void 0 : loc.longitude) != null ? _l : null,
-          altitude: (_m = loc == null ? void 0 : loc.altitude) != null ? _m : null,
-          horizontalAccuracy: (_n = loc == null ? void 0 : loc.horizontalAccuracy) != null ? _n : null,
-          positionType: (_o = loc == null ? void 0 : loc.positionType) != null ? _o : null,
-          locationTimestamp: (_p = loc == null ? void 0 : loc.timeStamp) != null ? _p : null,
-          isOld: (_q = loc == null ? void 0 : loc.isOld) != null ? _q : null,
-          isInaccurate: (_r = loc == null ? void 0 : loc.isInaccurate) != null ? _r : null,
+          latitude: (_j = loc == null ? void 0 : loc.latitude) != null ? _j : null,
+          longitude: (_k = loc == null ? void 0 : loc.longitude) != null ? _k : null,
+          altitude: (_l = loc == null ? void 0 : loc.altitude) != null ? _l : null,
+          horizontalAccuracy: (_m = loc == null ? void 0 : loc.horizontalAccuracy) != null ? _m : null,
+          positionType: (_n = loc == null ? void 0 : loc.positionType) != null ? _n : null,
+          locationTimestamp: (_o = loc == null ? void 0 : loc.timeStamp) != null ? _o : null,
+          isOld: (_p = loc == null ? void 0 : loc.isOld) != null ? _p : null,
+          isInaccurate: (_q = loc == null ? void 0 : loc.isInaccurate) != null ? _q : null,
           distanceKm: distKm !== null ? Math.round(distKm * 1e3) / 1e3 : null,
           ...geocodingActive ? { locationName: _geoResult } : {},
-          ownerAppleId: d.prsId ? (_t = (_s = membersInfo[d.prsId]) == null ? void 0 : _s.appleId) != null ? _t : null : null,
-          ownerName: d.prsId ? [(_u = membersInfo[d.prsId]) == null ? void 0 : _u.firstName, (_v = membersInfo[d.prsId]) == null ? void 0 : _v.lastName].filter(Boolean).join(" ") || null : null
+          ownerAppleId: d.prsId ? (_s = (_r = membersInfo[d.prsId]) == null ? void 0 : _r.appleId) != null ? _s : null : null,
+          ownerName: d.prsId ? [(_t = membersInfo[d.prsId]) == null ? void 0 : _t.firstName, (_u = membersInfo[d.prsId]) == null ? void 0 : _u.lastName].filter(Boolean).join(" ") || null : null
         };
         if (loc) {
           _geoTotalMs += _geoElapsed;
@@ -1084,7 +1079,7 @@ class Icloud extends utils.Adapter {
         this.log.debug(`FindMy: refresh done \u2014 ${allDevices.length} device(s) written`);
       }
     } catch (err) {
-      this.log.warn(`FindMy refresh failed: ${(_w = err == null ? void 0 : err.message) != null ? _w : String(err)}`);
+      this.log.warn(`FindMy refresh failed: ${(_v = err == null ? void 0 : err.message) != null ? _v : String(err)}`);
       if (err instanceof Error && /HTTP (421|450)/.test(err.message)) {
         this.triggerSessionRecovery(err.message);
       }

@@ -5,6 +5,8 @@
  * It is advised to test all your modules with accompanying *.test.ts-files
  */
 
+// TypeScript 6 no longer auto-includes the global mocha types here, so reference them explicitly.
+/// <reference types="mocha" />
 import { expect } from 'chai';
 // import { functionToTest } from "./moduleToTest";
 

@@ -15,7 +15,6 @@ import type { iCloudPhotosService, PhotoAssetInfo } from './lib/services/photos'
 import type { AlarmMeasurement, UpdateEventOptions } from './lib/services/calendar';
 import { GeoLookup } from './lib/geo';
 import { ExternalGeocoder } from './lib/geocoding';
-import type { GeocodingProvider, GeocodingCacheSize } from './lib/geocoding';
 
 /** Best-effort human-readable names for Apple FindMy feature flags (not officially documented). */
 const FINDMY_FEATURE_NAMES: Record<string, string> = {
@@ -1020,10 +1019,10 @@ class Icloud extends utils.Adapter {
 
         // External provider
         const geocoder = new ExternalGeocoder(
-            provider as GeocodingProvider,
+            provider,
             this.config.geocodingUrl ?? '',
             this.config.geocodingApiKey ?? '',
-            (this.config.geocodingCacheSize ?? 'small') as GeocodingCacheSize,
+            this.config.geocodingCacheSize ?? 'small',
             (level, msg) => this.log[level](msg),
         );
 
@@ -1155,18 +1154,15 @@ class Icloud extends utils.Adapter {
                 }
                 const numericId = this.getOrAssignFindMyNumericId(apiId);
                 const safeId = `findme.${numericId}`;
-                {
-                    const existingDeviceObj = await this.getObjectAsync(safeId);
-                    await this.setObject(safeId, {
-                        ...(existingDeviceObj ?? {}),
-                        type: 'device',
-                        common: {
-                            ...((existingDeviceObj?.common ?? {}) as ioBroker.DeviceCommon),
-                            name: d.name ?? d.deviceDisplayName ?? apiId,
-                        },
-                        native: { id: apiId, baUUID: d.baUUID },
-                    } as ioBroker.DeviceObject);
-                }
+                // extendObject merges into the existing object: keeps controller-managed
+                // common fields, updates the name and the stable native keys (id/baUUID).
+                await this.extendObject(safeId, {
+                    type: 'device',
+                    common: {
+                        name: d.name ?? d.deviceDisplayName ?? apiId,
+                    },
+                    native: { id: apiId, baUUID: d.baUUID },
+                });
                 // Battery states only for devices that report a valid battery
                 const hasBattery = d.batteryStatus != null && d.batteryStatus !== 'Unknown';
                 const batteryStateDefs = hasBattery
@@ -2044,13 +2040,18 @@ class Icloud extends utils.Adapter {
 
             // Persist syncMap only when data actually changed
             if (changed) {
+                // Read-merge-write: getObject + setObject. setObject (not extendObject) because
+                // native.syncMap must be replaced wholesale — extendObject would deep-merge and
+                // leave stale entries for reminders deleted in iCloud (ghost states on restore).
+                // The spread of remObj preserves controller-managed fields (acl, from, ts) that a
+                // bare setObject would drop. Do not "simplify" this to { type, common, native }.
                 const remObj = await this.getObjectAsync('reminders');
                 await this.setObject('reminders', {
                     ...(remObj ?? {}),
                     type: 'folder',
                     common: { ...((remObj?.common ?? {}) as ioBroker.OtherCommon), name: 'Reminders' },
                     native: { syncMap: remService.exportSyncMap() },
-                } as ioBroker.FolderObject);
+                });
             }
 
             // First call: always write states (data comes from restored syncMap even if delta was empty)
@@ -2087,12 +2088,13 @@ class Icloud extends utils.Adapter {
         try {
             const remService = this.icloud.getService('reminders');
             const remObj = await this.getObjectAsync('reminders');
+            // Full replace intentional — see the comment in the reminders refresh path above.
             await this.setObject('reminders', {
                 ...(remObj ?? {}),
                 type: 'folder',
                 common: { ...((remObj?.common ?? {}) as ioBroker.OtherCommon), name: 'Reminders' },
                 native: { syncMap: remService.exportSyncMap() },
-            } as ioBroker.FolderObject);
+            });
         } catch {
             // Best effort on shutdown
         }
@@ -2624,12 +2626,14 @@ class Icloud extends utils.Adapter {
             // Persist syncMap only when data actually changed
             if (changed) {
                 const notesObj = await this.getObjectAsync('notes');
+                // setObject (full replace) is intentional: native.syncMap must be replaced
+                // wholesale; extendObject would deep-merge and keep stale entries for deleted notes.
                 await this.setObject('notes', {
                     ...(notesObj ?? {}),
                     type: 'folder',
                     common: { ...((notesObj?.common ?? {}) as ioBroker.OtherCommon), name: 'Notes' },
                     native: { syncMap: notesService.exportSyncMap() },
-                } as ioBroker.FolderObject);
+                });
             }
 
             // First call: always write states; subsequent calls: skip if no changes
@@ -2657,12 +2661,13 @@ class Icloud extends utils.Adapter {
         try {
             const notesService = this.icloud.getService('notes');
             const notesObj = await this.getObjectAsync('notes');
+            // Full replace intentional — see the comment in the notes refresh path above.
             await this.setObject('notes', {
                 ...(notesObj ?? {}),
                 type: 'folder',
                 common: { ...((notesObj?.common ?? {}) as ioBroker.OtherCommon), name: 'Notes' },
                 native: { syncMap: notesService.exportSyncMap() },
-            } as ioBroker.FolderObject);
+            });
         } catch {
             // Best effort on shutdown
         }
@@ -3728,12 +3733,20 @@ class Icloud extends utils.Adapter {
         const remService = this.icloud.getService('reminders');
         remService.resetSyncMap();
         this.remindersSyncMapLoaded = false;
-        // Persist the cleared map so the next startup also does a full sync
-        this.extendObject('reminders', {
-            type: 'folder',
-            common: { name: 'Reminders' },
-            native: { syncMap: remService.exportSyncMap() },
-        })
+        // Persist the cleared map so the next startup also does a full sync.
+        // Read-merge-write (getObject + setObject), not extendObject: clearing the syncMap means
+        // removing keys from native.syncMap, which a deep-merging extendObject cannot do — it would
+        // leave the old lists/reminders behind and the reset would not actually take effect. The
+        // spread preserves controller-managed fields (acl, from, ts).
+        this.getObjectAsync('reminders')
+            .then(remObj =>
+                this.setObject('reminders', {
+                    ...(remObj ?? {}),
+                    type: 'folder',
+                    common: { ...((remObj?.common ?? {}) as ioBroker.OtherCommon), name: 'Reminders' },
+                    native: { syncMap: remService.exportSyncMap() },
+                }),
+            )
             .then(() => {
                 this.log.info('Reminders sync map reset — triggering full resync');
                 return this.refreshReminders();

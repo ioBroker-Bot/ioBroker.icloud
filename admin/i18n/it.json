@@ -1,5 +1,7 @@
 {
 	"icloud adapter settings": "Impostazioni dell'adattatore per icloud",
+	"username": "Apple ID (nome utente)",
+	"password": "Password",
 	"locationPointsHeader": "Punti di localizzazione",
 	"locationPoints": "Elenco posizioni",
 	"locationPointsHelp": "Utilizzato per calcolare le distanze dai dispositivi FindMy.",
@@ -10,6 +12,10 @@
 	"findMyEnabled": "Enable FindMy",
 	"findMyInterval": "Refresh interval (minutes)",
 	"findMyIntervalHelp": "How often FindMy devices are polled (1–120 minutes)",
+	"findMyIntervalExpertEnabled": "Abilita intervallo esperto (NON consigliato)",
+	"findMyIntervalExpertEnabledHelp": "Consente di impostare un intervallo di polling inferiore al minuto. NON consigliato: un intervallo di 1 minuto è collaudato e stabile. I limiti di frequenza di Apple sono sconosciuti: un polling troppo frequente può bloccare temporaneamente il tuo account.",
+	"findMyIntervalExpert": "Intervallo esperto (secondi)",
+	"findMyIntervalExpertHelp": "Intervallo di polling in secondi (30–120). NON consigliato: 1 minuto è ben collaudato e stabile. Intervalli molto brevi possono attivare il limite di frequenza di Apple e bloccare temporaneamente il tuo account.",
 	"calendarHeader": "Calendar",
 	"calendarEnabled": "Enable Calendar",
 	"calendarEventCount": "Number of upcoming events",

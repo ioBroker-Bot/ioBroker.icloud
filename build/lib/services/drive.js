@@ -344,11 +344,7 @@ class iCloudDriveService {
     const uploadJson = await uploadResponse.json();
     const { document_id, url } = uploadJson[0];
     const formData = new FormData();
-    formData.append(
-      file.name,
-      new Blob([file.content], { type: contentType }),
-      file.name
-    );
+    formData.append(file.name, new Blob([file.content], { type: contentType }), file.name);
     const contentResponse = await this.service.fetch(url, { method: "POST", body: formData });
     const contentJson = await contentResponse.json();
     await this._updateContentws(folderDocwsid, contentJson.singleFile, document_id, file.name);

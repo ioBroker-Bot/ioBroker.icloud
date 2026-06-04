@@ -121,10 +121,10 @@ The adapter accesses Apple's iCloud services using the same APIs that are used b
 * (ticaki) iCloud Drive integration: browse folders, upload/download files, create folders, delete and rename items via sendTo()
 * (ticaki) Added Blockly blocks for uploading and downloading iCloud Drive files
 * (ticaki) Drive root metadata exposed as states (drive.name, drive.fileCount, drive.rootItems, etc.)
-
-### 0.2.0-alpha.0 (2026-04-17)
 * (ticaki) iCloud Reminders are read and provided as data points (lists & reminders with due date, priority, and status)
 * (ticaki) Added Blockly sendTo blocks for creating, updating, completing, deleting, and querying iCloud Reminders
+
+Older changes are listed in [CHANGELOG_OLD.md](CHANGELOG_OLD.md).
 
 ## License
 MIT License

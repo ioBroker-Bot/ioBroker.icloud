@@ -118,5 +118,21 @@
 	"custom_mfa_success": "Code akzeptiert — Authentifizierung erfolgreich",
 	"custom_mfa_error_invalid": "Ungültiger Code — muss genau 6 Ziffern enthalten",
 	"custom_mfa_error_sms_failed": "SMS-Code konnte nicht angefordert werden",
-	"custom_mfa_error_submit_failed": "Code konnte nicht übermittelt werden"
+	"custom_mfa_error_submit_failed": "Code konnte nicht übermittelt werden",
+	"custom_mfa_sk_title": "Sicherheitsschlüssel erforderlich",
+	"custom_mfa_sk_description": "Dieses Apple-Konto nutzt einen Hardware-Sicherheitsschlüssel (FIDO2) – Apple lässt dafür weder SMS noch Bestätigungscodes zu. Klicke unten auf den Button: Der Adapter ist dann etwa 5 Minuten bereit und sucht alle paar Sekunden nach deinem Schlüssel. Stecke ihn ein (oder lass ihn stecken); sobald er erkannt wird, blinkt er – dann einmal berühren.",
+	"custom_mfa_sk_button": "Mit Sicherheitsschlüssel anmelden",
+	"custom_mfa_sk_starting": "Wird gestartet…",
+	"custom_mfa_sk_unsupported": "Sicherheitsschlüssel-Anmeldung ist auf diesem Host nicht verfügbar:",
+	"custom_mfa_sk_error_start": "Sicherheitsschlüssel-Anmeldung konnte nicht gestartet werden",
+	"custom_mfa_sk_help": "Keine Sorge – das ist sicher und einfach: Ein Sicherheitsschlüssel ist ein kleiner USB-Stick (z. B. ein YubiKey). Du gibst kein Passwort ein, und es kann nichts kaputtgehen.\n1. Unten auf den Button klicken.\n2. Den Schlüssel in einen USB-Port stecken (falls noch nicht geschehen).\n3. Warten, bis er blinkt.\n4. Einmal mit dem Finger auf den blinkenden Schlüssel tippen.\nFertig. Klappt es nicht beim ersten Mal, einfach den Button erneut klicken.",
+	"custom_mfa_sk_status_ready": "Bereit – klicke unten auf den Button, um zu starten.",
+	"custom_mfa_sk_status_waiting": "Warte auf einen Sicherheitsschlüssel – bitte einstecken…",
+	"custom_mfa_sk_status_detected": "Sicherheitsschlüssel erkannt (%s) – wird geprüft…",
+	"custom_mfa_sk_status_signing": "Berühre jetzt deinen Sicherheitsschlüssel – er sollte blinken…",
+	"custom_mfa_sk_status_verifying": "Schlüssel berührt – wird mit Apple verifiziert…",
+	"custom_mfa_sk_status_success": "Sicherheitsschlüssel akzeptiert ✓",
+	"custom_mfa_sk_status_nomatch": "Noch kein passender Schlüssel – neuer Versuch (berühre den blinkenden Schlüssel)…",
+	"custom_mfa_sk_status_timeout": "Zeitüberschreitung – es wurde kein Schlüssel rechtzeitig berührt.",
+	"custom_mfa_sk_status_error": "Fehler: %s"
 }

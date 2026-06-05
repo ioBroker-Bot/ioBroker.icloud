@@ -7,6 +7,16 @@ import crypto from 'node:crypto';
 import { CookieJar } from 'tough-cookie';
 import { iCloudAuthenticationStore } from './auth/authStore';
 import { GSASRPAuthenticator } from './auth/iCSRPAuthenticator.js';
+import {
+    detectFido2Support,
+    listFido2Devices,
+    buildClientDataJSON,
+    getAssertion,
+    b64decode,
+    b64encode,
+    type Fido2Capability,
+    type Fido2Assertion,
+} from './auth/fido2';
 import { AUTH_ENDPOINT, AUTH_HEADERS, DEFAULT_HEADERS, SETUP_ENDPOINT } from './consts';
 import { iCloudAccountDetailsService } from './services/account';
 import { iCloudCalendarService } from './services/calendar';
@@ -154,6 +164,33 @@ console.log(icloud.status);
 console.log("Hello, " + icloud.accountInfo.dsInfo.fullName);
 ```
  */
+
+/**
+ * Progress milestones reported by {@link iCloudService.authenticateWithSecurityKey} so the adapter
+ * can surface a live status to the user (e.g. in a state) instead of a silent wait.
+ */
+export type SecurityKeyProgress =
+    | 'waiting-for-key' // no FIDO2 device plugged in yet — polling
+    | 'key-detected' // at least one device present, trying to match Apple's credential(s)
+    | 'signing' // asking a device for an assertion — the matching key blinks for a touch
+    | 'verifying' // a touch produced an assertion; submitting it to Apple
+    | 'success' // Apple accepted the assertion
+    | 'no-match' // devices present but none held the credential / no touch this round — retrying
+    | 'timeout'; // the overall window elapsed without a successful touch
+
+/**
+ * A parsed FIDO2 security-key challenge from Apple's `fsaChallenge` (GET /appleauth/auth).
+ * `challenge` and `keyHandles` are base64(url) strings exactly as Apple sent them.
+ */
+export interface SecurityKeyChallenge {
+    /** The assertion challenge (base64/base64url), echoed back to Apple unchanged. */
+    challenge: string;
+    /** Registered credential ids (keyHandles), base64/base64url. */
+    keyHandles: string[];
+    /** Relying party id, e.g. `apple.com`. */
+    rpId: string;
+}
+
 export default class iCloudService extends EventEmitter {
     /**
      * The authentication store for this service instance.
@@ -207,6 +244,14 @@ export default class iCloudService extends EventEmitter {
 
     /** Set after requestSmsMfaCode() — routes provideMfaCode to /verify/phone/securitycode */
     private _smsPhoneNumberId?: number | string;
+
+    /**
+     * Parsed FIDO2 security-key challenge from GET /appleauth/auth (Apple's `fsaChallenge`).
+     * Present only for accounts that have hardware security keys enrolled — for those accounts
+     * SMS / trusted-device 2FA is disabled by Apple and this is the ONLY way to satisfy MFA.
+     * Consumed by authenticateWithSecurityKey(). See src/lib/auth/fido2.ts.
+     */
+    private _securityKeyChallenge?: SecurityKeyChallenge;
 
     /**
      * A promise that can be awaited that resolves when the iCloudService is ready.
@@ -535,6 +580,29 @@ export default class iCloudService extends EventEmitter {
                                         `[auth] Trusted phone: id=${this._trustedPhone.id}, nonFTEU=${this._trustedPhone.nonFTEU}, pushMode=${this._trustedPhone.pushMode}`,
                                     );
                                 }
+
+                                // Parse the FIDO2 security-key challenge, if present. Accounts with
+                                // hardware security keys get an `fsaChallenge` here instead of usable
+                                // SMS/trusted-device options — see authenticateWithSecurityKey().
+                                const fsa = authOptions?.fsaChallenge as Record<string, unknown> | undefined;
+                                const keyHandles = fsa?.keyHandles;
+                                if (
+                                    fsa &&
+                                    typeof fsa.challenge === 'string' &&
+                                    typeof fsa.rpId === 'string' &&
+                                    Array.isArray(keyHandles) &&
+                                    keyHandles.every(k => typeof k === 'string')
+                                ) {
+                                    this._securityKeyChallenge = {
+                                        challenge: fsa.challenge,
+                                        rpId: fsa.rpId,
+                                        keyHandles: keyHandles,
+                                    };
+                                    this._log(
+                                        LogLevel.Debug,
+                                        `[auth] Security-key challenge present: rpId=${fsa.rpId}, ${keyHandles.length} keyHandle(s)`,
+                                    );
+                                }
                             } catch {
                                 /* JSON parse failed — non-fatal; _trustedPhone stays undefined */
                             }
@@ -606,12 +674,23 @@ export default class iCloudService extends EventEmitter {
      * @param phoneNumberId - Optional explicit phone number ID. When omitted, the ID from Apple's auth response is used.
      */
     async requestSmsMfaCode(phoneNumberId?: number | string): Promise<void> {
-        // pyiCloud raises PyiCloudNoTrustedNumberAvailable when no phone number is known.
-        // Mirror that behaviour: require either an explicit id or a parsed _trustedPhone.
-        if (phoneNumberId === undefined && this._trustedPhone === undefined) {
-            throw new Error('No trusted phone number available — cannot request SMS 2FA code');
+        // Normally Apple returns a trusted phone number in the auth options. Accounts that use
+        // security keys (FIDO2 / YubiKey) as their primary 2FA may omit the phone number from
+        // GET /appleauth/auth (the response carries an fsaChallenge instead), even though a phone
+        // number is still registered. Rather than bailing out, attempt id=1 (the first registered
+        // number) as a diagnostic fallback so we can observe Apple's actual /verify/phone response.
+        let id: number | string;
+        if (phoneNumberId !== undefined) {
+            id = phoneNumberId;
+        } else if (this._trustedPhone !== undefined) {
+            id = this._trustedPhone.id;
+        } else {
+            id = 1;
+            this._log(
+                LogLevel.Warning,
+                '[auth] No trusted phone number in auth options (security-key account?) — trying SMS fallback with phone id=1',
+            );
         }
-        const id = phoneNumberId ?? this._trustedPhone!.id;
 
         // Build phoneNumber payload like pyiCloud's as_phone_number_payload()
         const phonePayload: Record<string, unknown> = { id };
@@ -632,6 +711,234 @@ export default class iCloudService extends EventEmitter {
         }
         // Remember that next MFA code submission must go to the phone endpoint
         this._smsPhoneNumberId = id;
+    }
+
+    /**
+     * True when Apple's MFA challenge for the current login requires a hardware security key
+     * (the auth response carried an `fsaChallenge`). For such accounts SMS / trusted-device 2FA is
+     * disabled by Apple, so {@link authenticateWithSecurityKey} is the only way forward.
+     */
+    get securityKeyRequested(): boolean {
+        return this._securityKeyChallenge !== undefined;
+    }
+
+    /**
+     * Probe whether this host can perform security-key login (Linux + libfido2 CLI tools present).
+     * Cheap/synchronous — safe to call from the adapter to decide between offering the FIDO2 button
+     * and showing a "not supported on this platform" hint.
+     */
+    get securityKeyCapability(): Fido2Capability {
+        return detectFido2Support();
+    }
+
+    /**
+     * Satisfy a security-key MFA challenge by producing a WebAuthn assertion with a physical key.
+     *
+     * Strategy (no device pinning — security keys often expose no unique USB serial): within a time
+     * window, repeatedly enumerate the connected FIDO2 authenticators and offer each of Apple's
+     * keyHandles to each device. A device that does NOT hold a given credential rejects instantly
+     * and silently (no blink); only the matching key raises a user-presence prompt (blinks) and waits
+     * for a touch. The first assertion that succeeds is POSTed to Apple's /verify/security/key
+     * endpoint, after which the normal Authenticated → Trusted → Ready flow runs (mirroring
+     * provideMfaCode). This works even with many identical keys plugged in at once.
+     *
+     * Mirrors pyicloud's `confirm_security_key()` for the Apple-facing request/encoding details.
+     *
+     * @param options                      Tuning parameters and the progress callback (all optional).
+     * @param options.timeoutMs            Overall window to wait for a successful touch. Default 5 min.
+     * @param options.pollIntervalMs       How often to re-scan for devices. Default 5 s.
+     * @param options.perAttemptTimeoutMs  Per-assertion touch timeout before retrying. Default 25 s.
+     * @param options.onProgress           Live status callback for the adapter UI.
+     */
+    async authenticateWithSecurityKey(options?: {
+        timeoutMs?: number;
+        pollIntervalMs?: number;
+        perAttemptTimeoutMs?: number;
+        onProgress?: (status: SecurityKeyProgress, detail?: string) => void;
+    }): Promise<void> {
+        const challenge = this._securityKeyChallenge;
+        if (!challenge) {
+            throw new Error('No security-key challenge available — not in a security-key MFA state.');
+        }
+        const cap = detectFido2Support();
+        if (!cap.supported) {
+            throw new Error(cap.reason ?? 'Security-key (FIDO2) login is not supported on this platform.');
+        }
+        if (!this.authStore.validateAuthSecrets()) {
+            throw new Error('Cannot authenticate with a security key without calling authenticate first!');
+        }
+
+        const timeoutMs = options?.timeoutMs ?? 5 * 60_000;
+        const pollIntervalMs = options?.pollIntervalMs ?? 5000;
+        const perAttemptTimeoutMs = options?.perAttemptTimeoutMs ?? 25_000;
+        const onProgress = options?.onProgress ?? ((): void => {});
+
+        // Apple's fsaChallenge is single-use and short-lived, so it must NOT be reused from login
+        // time. We re-fetch it fresh immediately before each signing round (inside the loop below) —
+        // mirrors icloud3's _get_webauthn_options(). The `challenge` read above only proves we are in
+        // a security-key MFA state; the bytes that get signed come from the refreshed challenge.
+        const deadline = Date.now() + timeoutMs;
+
+        while (Date.now() < deadline) {
+            let devices: string[];
+            try {
+                devices = await listFido2Devices();
+            } catch (e) {
+                this._log(LogLevel.Warning, '[auth] Could not list FIDO2 devices:', String(e));
+                devices = [];
+            }
+
+            if (devices.length === 0) {
+                onProgress('waiting-for-key');
+                await sleep(Math.max(0, Math.min(pollIntervalMs, deadline - Date.now())));
+                continue;
+            }
+
+            onProgress('key-detected', devices.join(', '));
+
+            // Re-fetch a fresh challenge right before signing. A stale or already-spent fsaChallenge
+            // (e.g. the one captured at login, or one consumed by a prior touch) is exactly what makes
+            // Apple reject the assertion with serviceError -27962 "Failed to verify security key".
+            const current = await this._refreshSecurityKeyChallenge();
+            if (!current) {
+                this._log(LogLevel.Warning, '[auth] No fresh security-key challenge from Apple — retrying');
+                onProgress('no-match');
+                await sleep(Math.max(0, Math.min(pollIntervalMs, deadline - Date.now())));
+                continue;
+            }
+            const challengeRaw = b64decode(current.challenge);
+            // WebAuthn origin is the fixed string "https://apple.com", matching icloud3's reference
+            // (DefaultClientDataCollector("https://apple.com")). The real -27962 cause was the
+            // CBOR-wrapped authData, not the origin; we follow the working reference here.
+            const clientDataJSON = buildClientDataJSON(challengeRaw, 'https://apple.com');
+            const credentialIds = current.keyHandles.map(h => b64decode(h));
+
+            for (const device of devices) {
+                for (const credentialId of credentialIds) {
+                    if (Date.now() >= deadline) {
+                        break;
+                    }
+                    onProgress('signing', device);
+                    let assertion;
+                    try {
+                        assertion = await getAssertion({
+                            device,
+                            rpId: current.rpId,
+                            credentialId,
+                            clientDataJSON,
+                            userVerification: false,
+                            timeoutMs: Math.min(perAttemptTimeoutMs, Math.max(1000, deadline - Date.now())),
+                            log: msg => this._log(LogLevel.Debug, `[auth][fido2] ${msg}`),
+                        });
+                    } catch (e) {
+                        // Touch timeout or transient error — keep trying within the window.
+                        this._log(LogLevel.Debug, `[auth][fido2] attempt on ${device} failed: ${String(e)}`);
+                        continue;
+                    }
+                    if (assertion) {
+                        onProgress('verifying');
+                        await this._submitSecurityKeyAssertion(current, assertion);
+                        onProgress('success');
+                        return;
+                    }
+                    // null → this device does not hold this credential; try the next combination.
+                }
+            }
+
+            // Devices were present but none matched (or no touch yet) — pause briefly and retry.
+            onProgress('no-match');
+            await sleep(Math.max(0, Math.min(pollIntervalMs, deadline - Date.now())));
+        }
+
+        onProgress('timeout');
+        throw new Error('Security-key authentication timed out — no matching key was touched in time.');
+    }
+
+    /**
+     * Re-fetch Apple's `fsaChallenge` via GET /appleauth/auth and update {@link _securityKeyChallenge}.
+     *
+     * Apple's security-key challenge is single-use and short-lived: the one captured during the
+     * initial login (or one already consumed by a previous touch) is rejected server-side with
+     * serviceError -27962 ("Failed to verify security key"). This must therefore be called fresh
+     * immediately before each signing round — mirrors icloud3's `_get_webauthn_options()`.
+     *
+     * @returns The refreshed challenge, or `undefined` if Apple no longer presents an `fsaChallenge`.
+     */
+    private async _refreshSecurityKeyChallenge(): Promise<SecurityKeyChallenge | undefined> {
+        try {
+            const resp = await this.fetch(AUTH_ENDPOINT.replace(/\/$/, ''), {
+                headers: this.authStore.getMfaHeaders(),
+            });
+            const authOptions = JSON.parse(await resp.text()) as Record<string, unknown>;
+            const fsa = authOptions?.fsaChallenge as Record<string, unknown> | undefined;
+            const keyHandles = fsa?.keyHandles;
+            if (
+                fsa &&
+                typeof fsa.challenge === 'string' &&
+                typeof fsa.rpId === 'string' &&
+                Array.isArray(keyHandles) &&
+                keyHandles.every(k => typeof k === 'string')
+            ) {
+                this._securityKeyChallenge = {
+                    challenge: fsa.challenge,
+                    rpId: fsa.rpId,
+                    keyHandles: keyHandles as string[],
+                };
+                this._log(
+                    LogLevel.Debug,
+                    `[auth] Refreshed security-key challenge (rpId=${fsa.rpId}, ${keyHandles.length} keyHandle(s))`,
+                );
+                return this._securityKeyChallenge;
+            }
+            this._log(LogLevel.Warning, '[auth] GET /appleauth/auth returned no fsaChallenge on refresh');
+        } catch (e) {
+            this._log(LogLevel.Warning, '[auth] Failed to refresh security-key challenge:', String(e));
+        }
+        return undefined;
+    }
+
+    /**
+     * POST a completed WebAuthn assertion to Apple and advance the auth state machine.
+     * Mirrors the tail of provideMfaCode(): Authenticated → (trust) → Ready.
+     *
+     * @param challenge The security-key challenge whose `challenge`/`rpId` are echoed back to Apple.
+     * @param assertion The WebAuthn assertion produced by the physical key.
+     */
+    private async _submitSecurityKeyAssertion(
+        challenge: SecurityKeyChallenge,
+        assertion: Fido2Assertion,
+    ): Promise<void> {
+        // Body shape + encoding mirror pyicloud confirm_security_key(): the echoed `challenge` keeps
+        // Apple's original encoding; the signed outputs go out as standard base64.
+        const body = {
+            challenge: challenge.challenge,
+            clientData: b64encode(assertion.clientDataJSON),
+            signatureData: b64encode(assertion.signature),
+            authenticatorData: b64encode(assertion.authenticatorData),
+            userHandle: assertion.userHandle ? b64encode(assertion.userHandle) : null,
+            credentialID: b64encode(assertion.credentialId),
+            rpId: challenge.rpId,
+        };
+        this._log(LogLevel.Debug, '[auth] POST /verify/security/key — submitting assertion');
+        const resp = await this.fetch(`${AUTH_ENDPOINT}verify/security/key`, {
+            headers: this.authStore.getMfaHeaders(),
+            method: 'POST',
+            body: JSON.stringify(body),
+        });
+        const text = await resp.text();
+        this._log(LogLevel.Debug, `[auth] verify/security/key → ${resp.status}: ${text.slice(0, 300)}`);
+        if (resp.status !== 200 && resp.status !== 204) {
+            throw new Error(`Security-key verification failed (HTTP ${resp.status}): ${text.slice(0, 300)}`);
+        }
+
+        this._securityKeyChallenge = undefined;
+        this._smsPhoneNumberId = undefined;
+        this._setState(iCloudServiceStatus.Authenticated);
+        if (this.options.trustDevice) {
+            void this._getTrustToken().then(this._getiCloudCookies.bind(this));
+        } else {
+            void this._getiCloudCookies();
+        }
     }
 
     /**

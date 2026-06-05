@@ -5,7 +5,7 @@
 import * as path from 'node:path';
 import * as fs from 'node:fs';
 import * as utils from '@iobroker/adapter-core';
-import iCloudService, { iCloudServiceStatus, LogLevel } from './lib/index';
+import iCloudService, { iCloudServiceStatus, LogLevel, type SecurityKeyProgress } from './lib/index';
 import type { iCloudFindMyDeviceInfo } from './lib/services/findMy';
 import type { iCloudRemindersService, Reminder, RemindersSyncMap } from './lib/services/reminders';
 import type { iCloudDriveService, iCloudDriveNode, iCloudDriveItem } from './lib/services/drive';
@@ -307,6 +307,14 @@ class Icloud extends utils.Adapter {
     /** Maps Apple device API id → 6-digit zero-padded folder id (e.g. '000001') */
     private findMyIdMap: Map<string, string> = new Map();
     private staleSessionRetryDone = false;
+    /** Latest human-readable security-key login status (mirrored to mfa.securityKeyStatus + reported to the admin UI). */
+    private securityKeyStatusText = '';
+    /** i18n key for the current security-key status so the admin UI can render it in the user's language. */
+    private securityKeyStatusKey = '';
+    /** Optional value substituted into the status text via %s (device path, error message). */
+    private securityKeyStatusDetail = '';
+    /** True while a security-key authentication run is in flight — prevents concurrent starts. */
+    private securityKeyAuthRunning = false;
     private sessionRecoveryInProgress = false;
     private calendarRefreshTimer: ioBroker.Timeout | null | undefined = null;
     private remindersRefreshTimer: ioBroker.Timeout | null | undefined = null;
@@ -523,6 +531,47 @@ class Icloud extends utils.Adapter {
             native: {},
         });
 
+        // ── Security-key (FIDO2 / YubiKey) MFA ───────────────────────────────────
+        // Only relevant for Apple accounts that have hardware security keys enrolled (which disables
+        // SMS/trusted-device 2FA). On hosts without Linux + libfido2 the support flag stays false and
+        // the adapter logs a "not supported" hint instead.
+        await this.extendObject('mfa.useSecurityKey', {
+            type: 'state',
+            common: {
+                name: 'Authenticate with security key (set to true)',
+                type: 'boolean',
+                role: 'button',
+                read: true,
+                write: true,
+                def: false,
+            },
+            native: {},
+        });
+        await this.extendObject('mfa.securityKeySupported', {
+            type: 'state',
+            common: {
+                name: 'Security-key login supported on this host',
+                type: 'boolean',
+                role: 'indicator',
+                read: true,
+                write: false,
+                def: false,
+            },
+            native: {},
+        });
+        await this.extendObject('mfa.securityKeyStatus', {
+            type: 'state',
+            common: {
+                name: 'Security-key login status',
+                type: 'string',
+                role: 'text',
+                read: true,
+                write: false,
+                def: '',
+            },
+            native: {},
+        });
+
         // account.storage channel + states
         await this.extendObject('account.storage', {
             type: 'channel',
@@ -614,6 +663,7 @@ class Icloud extends utils.Adapter {
 
         this.subscribeStates('mfa.code');
         this.subscribeStates('mfa.requestSmsCode');
+        this.subscribeStates('mfa.useSecurityKey');
         this.subscribeStates('findme.*.ping');
         this.subscribeStates('findme.refresh');
         this.subscribeStates('reminders.*.*.completed');
@@ -621,6 +671,157 @@ class Icloud extends utils.Adapter {
         this.log.debug('Subscribed to mfa.code');
 
         await this.connectToiCloud();
+    }
+
+    /**
+     * Called when an MFA challenge arrives. If the account uses a hardware security key (FIDO2),
+     * report whether this host can perform that login and tell the user how to proceed. For
+     * accounts without a security-key challenge this is a no-op (normal SMS/code flow applies).
+     */
+    private handleSecurityKeyChallenge(): void {
+        if (!this.icloud?.securityKeyRequested) {
+            return;
+        }
+        const cap = this.icloud.securityKeyCapability;
+        void this.setState('mfa.securityKeySupported', cap.supported, true);
+        if (cap.supported) {
+            const msg =
+                'This Apple account uses a hardware security key. Open the adapter instance config, ' +
+                'click the security-key button, then touch the key when it blinks.';
+            this.log.warn(msg);
+            this.setSecurityKeyStatus(
+                'Ready — click the security-key button below to start.',
+                'custom_mfa_sk_status_ready',
+            );
+        } else {
+            this.log.error(
+                `This Apple account requires a hardware security key, but security-key login is not ` +
+                    `available on this host: ${cap.reason} ` +
+                    `See the adapter README (FIDO2 / security-key section) for setup instructions.`,
+            );
+            this.setSecurityKeyStatus(`not supported: ${cap.reason ?? 'unknown'}`);
+        }
+    }
+
+    /**
+     * Validate preconditions and kick off a security-key authentication run. Shared by both the
+     * `mfa.useSecurityKey` state button and the admin-UI `startSecurityKeyMfa` message, so they
+     * behave identically. Returns synchronously with the validation result; the actual key ceremony
+     * (which can take up to 5 minutes) runs in the background and reports via {@link setSecurityKeyStatus}.
+     *
+     * @returns `{ started: true }` when the ceremony was launched, or `{ started: false, error }`.
+     */
+    private startSecurityKeyAuthentication(): { started: boolean; error?: string } {
+        if (!this.icloud) {
+            return { started: false, error: 'iCloud service is not initialized' };
+        }
+        if (this.icloud.status !== 'MfaRequested') {
+            return { started: false, error: `iCloud status is "${this.icloud.status}" — not in MFA state` };
+        }
+        if (!this.icloud.securityKeyRequested) {
+            return { started: false, error: 'This account did not present a security-key challenge' };
+        }
+        const cap = this.icloud.securityKeyCapability;
+        if (!cap.supported) {
+            this.setSecurityKeyStatus(
+                `not supported: ${cap.reason ?? 'unknown'}`,
+                'custom_mfa_sk_unsupported',
+                cap.reason ?? '',
+            );
+            return { started: false, error: cap.reason ?? 'Security-key login not supported on this host' };
+        }
+        if (this.securityKeyAuthRunning) {
+            return { started: false, error: 'Security-key authentication is already running' };
+        }
+
+        this.securityKeyAuthRunning = true;
+        this.log.info('Starting security-key authentication — touch your key when it blinks (window: 5 minutes)…');
+        this.icloud
+            .authenticateWithSecurityKey({
+                onProgress: (s: SecurityKeyProgress, detail?: string) => {
+                    const msg = this.securityKeyProgressMessage(s, detail);
+                    this.setSecurityKeyStatus(msg, this.securityKeyProgressI18nKey(s), detail ?? '');
+                    this.log.debug(`[security-key] ${msg}`);
+                },
+            })
+            .then(() => {
+                this.log.info('Security-key authentication succeeded.');
+            })
+            .catch((err: unknown) => {
+                const m = (err as Error)?.message ?? String(err);
+                this.log.error(`Security-key authentication failed: ${m}`);
+                this.setSecurityKeyStatus(`error: ${m}`, 'custom_mfa_sk_status_error', m);
+            })
+            .finally(() => {
+                this.securityKeyAuthRunning = false;
+            });
+        return { started: true };
+    }
+
+    /**
+     * Update the security-key status: cache it for the admin UI and mirror it to the state.
+     *
+     * @param text The new human-readable status text.
+     */
+    private setSecurityKeyStatus(text: string, key = '', detail = ''): void {
+        this.securityKeyStatusText = text;
+        this.securityKeyStatusKey = key;
+        this.securityKeyStatusDetail = detail;
+        void this.setState('mfa.securityKeyStatus', text, true);
+    }
+
+    /**
+     * Map a {@link SecurityKeyProgress} milestone to the admin-UI i18n key so the live status renders
+     * in the user's language instead of a hardcoded English string.
+     *
+     * @param status The progress milestone reported by the iCloud service.
+     */
+    private securityKeyProgressI18nKey(status: SecurityKeyProgress): string {
+        switch (status) {
+            case 'waiting-for-key':
+                return 'custom_mfa_sk_status_waiting';
+            case 'key-detected':
+                return 'custom_mfa_sk_status_detected';
+            case 'signing':
+                return 'custom_mfa_sk_status_signing';
+            case 'verifying':
+                return 'custom_mfa_sk_status_verifying';
+            case 'success':
+                return 'custom_mfa_sk_status_success';
+            case 'no-match':
+                return 'custom_mfa_sk_status_nomatch';
+            case 'timeout':
+                return 'custom_mfa_sk_status_timeout';
+            default:
+                return '';
+        }
+    }
+
+    /**
+     * Map a {@link SecurityKeyProgress} milestone to a human-readable status string for the state.
+     *
+     * @param status The progress milestone reported by the iCloud service.
+     * @param detail Optional extra context (e.g. the device path).
+     */
+    private securityKeyProgressMessage(status: SecurityKeyProgress, detail?: string): string {
+        switch (status) {
+            case 'waiting-for-key':
+                return 'Waiting for a security key — plug it in…';
+            case 'key-detected':
+                return `Security key detected${detail ? ` (${detail})` : ''} — checking…`;
+            case 'signing':
+                return 'Touch your security key now — it should be blinking…';
+            case 'verifying':
+                return 'Key touched — verifying with Apple…';
+            case 'success':
+                return 'Security key accepted ✓';
+            case 'no-match':
+                return 'No matching key yet — retrying (touch the blinking key)…';
+            case 'timeout':
+                return 'Timed out — no key was touched in time.';
+            default:
+                return String(status);
+        }
     }
 
     private async connectToiCloud(): Promise<void> {
@@ -656,6 +857,9 @@ class Icloud extends utils.Adapter {
             this.log.debug(`iCloud status is now: ${this.icloud?.status ?? 'unknown'}`);
             void this.setState('mfa.required', true, true);
             void this.setState('info.connection', false, true);
+            // Accounts with hardware security keys present an fsaChallenge here and cannot use
+            // SMS/trusted-device codes at all — surface the FIDO2 path (or a "not supported" hint).
+            this.handleSecurityKeyChallenge();
         });
 
         this.icloud.on('Authenticated', () => {
@@ -3319,6 +3523,15 @@ class Icloud extends utils.Adapter {
             return;
         }
 
+        if (id === `${this.namespace}.mfa.useSecurityKey` && state.val === true) {
+            void this.setState('mfa.useSecurityKey', false, true);
+            const result = this.startSecurityKeyAuthentication();
+            if (!result.started) {
+                this.log.warn(`Security-key request ignored: ${result.error}`);
+            }
+            return;
+        }
+
         if (id === `${this.namespace}.mfa.requestSmsCode` && state.val === true) {
             if (!this.icloud) {
                 this.log.warn('SMS request received but iCloud service is not initialized');
@@ -3588,6 +3801,8 @@ class Icloud extends utils.Adapter {
             this.handleGetMfaStatus(obj);
         } else if (obj.command === 'requestSmsMfa') {
             this.handleRequestSmsMfa(obj);
+        } else if (obj.command === 'startSecurityKeyMfa') {
+            this.handleStartSecurityKeyMfa(obj);
         }
     }
 
@@ -3601,9 +3816,33 @@ class Icloud extends utils.Adapter {
      * @param obj - The incoming ioBroker message object.
      */
     private handleGetMfaStatus(obj: ioBroker.Message): void {
-        if (obj.callback) {
-            this.sendTo(obj.from, obj.command, { mfaRequested: this.icloud?.status === 'MfaRequested' }, obj.callback);
+        if (!obj.callback) {
+            return;
         }
+        const mfaRequested = this.icloud?.status === 'MfaRequested';
+        const securityKeyRequested = mfaRequested && this.icloud?.securityKeyRequested === true;
+        let securityKeySupported = false;
+        let securityKeyReason: string | undefined;
+        if (securityKeyRequested && this.icloud) {
+            const cap = this.icloud.securityKeyCapability;
+            securityKeySupported = cap.supported;
+            securityKeyReason = cap.reason;
+        }
+        this.sendTo(
+            obj.from,
+            obj.command,
+            {
+                mfaRequested,
+                securityKeyRequested,
+                securityKeySupported,
+                securityKeyReason,
+                securityKeyStatus: this.securityKeyStatusText,
+                securityKeyStatusKey: this.securityKeyStatusKey,
+                securityKeyStatusDetail: this.securityKeyStatusDetail,
+                securityKeyRunning: this.securityKeyAuthRunning,
+            },
+            obj.callback,
+        );
     }
 
     /**
@@ -3637,6 +3876,24 @@ class Icloud extends utils.Adapter {
                     );
                 }
             });
+    }
+
+    /**
+     * Starts a security-key (FIDO2) authentication run on behalf of the admin UI.
+     * The actual ceremony runs in the background; the UI follows progress via getMfaStatus polling.
+     *
+     * @param obj - The incoming ioBroker message object.
+     */
+    private handleStartSecurityKeyMfa(obj: ioBroker.Message): void {
+        const result = this.startSecurityKeyAuthentication();
+        if (result.started) {
+            this.log.info('Admin UI: security-key authentication started');
+        } else {
+            this.log.warn(`Admin UI: security-key authentication not started: ${result.error}`);
+        }
+        if (obj.callback) {
+            this.sendTo(obj.from, obj.command, { success: result.started, error: result.error }, obj.callback);
+        }
     }
 
     // ── onMessage FindMy handlers ────────────────────────────────────────────

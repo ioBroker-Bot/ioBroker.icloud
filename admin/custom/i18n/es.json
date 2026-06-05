@@ -118,5 +118,21 @@
 	"custom_mfa_success": "Código aceptado — autenticación correcta",
 	"custom_mfa_error_invalid": "Código inválido — debe tener exactamente 6 dígitos",
 	"custom_mfa_error_sms_failed": "Error al solicitar el código SMS",
-	"custom_mfa_error_submit_failed": "Error al enviar el código"
+	"custom_mfa_error_submit_failed": "Error al enviar el código",
+	"custom_mfa_sk_title": "Se requiere llave de seguridad",
+	"custom_mfa_sk_description": "Esta cuenta de Apple usa una llave de seguridad por hardware (FIDO2); Apple desactiva los SMS y los códigos de verificación para estas cuentas. Haz clic en el botón de abajo: el adaptador permanece listo unos 5 minutos y busca tu llave cada pocos segundos. Conéctala (o déjala conectada); en cuanto se detecte, parpadeará: tócala una vez.",
+	"custom_mfa_sk_button": "Iniciar sesión con llave de seguridad",
+	"custom_mfa_sk_starting": "Iniciando…",
+	"custom_mfa_sk_unsupported": "El inicio de sesión con llave de seguridad no está disponible en este host:",
+	"custom_mfa_sk_error_start": "No se pudo iniciar el inicio de sesión con llave de seguridad",
+	"custom_mfa_sk_help": "No te preocupes, es seguro y sencillo: una llave de seguridad es un pequeño dispositivo USB (por ejemplo, una YubiKey). No escribes ninguna contraseña y no puede romperse nada.\n1. Haz clic en el botón de abajo.\n2. Conecta la llave a un puerto USB (si aún no lo está).\n3. Espera hasta que parpadee.\n4. Toca una vez la llave que parpadea con el dedo.\nListo. Si no funciona a la primera, vuelve a hacer clic en el botón.",
+	"custom_mfa_sk_status_ready": "Listo: haz clic en el botón de abajo para empezar.",
+	"custom_mfa_sk_status_waiting": "Esperando una llave de seguridad: conéctala…",
+	"custom_mfa_sk_status_detected": "Llave de seguridad detectada (%s): comprobando…",
+	"custom_mfa_sk_status_signing": "Toca ahora tu llave de seguridad: debería estar parpadeando…",
+	"custom_mfa_sk_status_verifying": "Llave tocada: verificando con Apple…",
+	"custom_mfa_sk_status_success": "Llave de seguridad aceptada ✓",
+	"custom_mfa_sk_status_nomatch": "Aún no hay ninguna llave válida: reintentando (toca la llave que parpadea)…",
+	"custom_mfa_sk_status_timeout": "Tiempo agotado: no se tocó ninguna llave a tiempo.",
+	"custom_mfa_sk_status_error": "Error: %s"
 }

@@ -3,6 +3,7 @@ import { Alert, Box, Button, CircularProgress, Stack, TextField, Typography } fr
 import LockIcon from '@mui/icons-material/Lock';
 import SmsIcon from '@mui/icons-material/Sms';
 import SendIcon from '@mui/icons-material/Send';
+import KeyIcon from '@mui/icons-material/Key';
 import { ConfigGeneric, type ConfigGenericProps, type ConfigGenericState } from '@iobroker/json-config';
 import { I18n } from '@iobroker/adapter-react-v5';
 
@@ -28,6 +29,20 @@ interface SmsMfaPanelState extends ConfigGenericState {
     error: string | null;
     /** Non-null when there is a user-visible success/info message. */
     info: string | null;
+    /** True when this account requires a hardware security key (FIDO2) instead of SMS/code. */
+    securityKeyRequested: boolean;
+    /** True when this host can perform security-key login (Linux + libfido2 present). */
+    securityKeySupported: boolean;
+    /** Reason why security-key login is unavailable on this host (when not supported). */
+    securityKeyReason: string | null;
+    /** Latest live status text of the security-key ceremony, reported by the adapter (English fallback). */
+    securityKeyStatus: string | null;
+    /** i18n key for the live status, so the admin can render it in the user's language. */
+    securityKeyStatusKey: string | null;
+    /** Optional value substituted into the status via %s (device path, error message). */
+    securityKeyStatusDetail: string | null;
+    /** True while the "Login with security key" sendTo call is in flight. */
+    securityKeyStarting: boolean;
 }
 
 /**
@@ -59,6 +74,13 @@ class SmsMfaPanel extends ConfigGeneric<ConfigGenericProps, SmsMfaPanelState> {
             submitting: false,
             error: null,
             info: null,
+            securityKeyRequested: false,
+            securityKeySupported: false,
+            securityKeyReason: null,
+            securityKeyStatus: null,
+            securityKeyStatusKey: null,
+            securityKeyStatusDetail: null,
+            securityKeyStarting: false,
         } satisfies Partial<SmsMfaPanelState>);
     }
 
@@ -148,25 +170,63 @@ class SmsMfaPanel extends ConfigGeneric<ConfigGenericProps, SmsMfaPanelState> {
         this.stopPolling();
         let mfaRequested = false;
         let alive = false;
+        let securityKeyRequested = false;
+        let securityKeySupported = false;
+        let securityKeyReason: string | null = null;
+        let securityKeyStatus: string | null = null;
+        let securityKeyStatusKey: string | null = null;
+        let securityKeyStatusDetail: string | null = null;
         try {
             const raw: unknown = await this.props.oContext.socket.sendTo(
                 `icloud.${this.props.oContext.instance}`,
                 'getMfaStatus',
                 {},
             );
-            const response = raw as { mfaRequested?: boolean } | undefined;
+            const response = raw as
+                | {
+                      mfaRequested?: boolean;
+                      securityKeyRequested?: boolean;
+                      securityKeySupported?: boolean;
+                      securityKeyReason?: string;
+                      securityKeyStatus?: string;
+                      securityKeyStatusKey?: string;
+                      securityKeyStatusDetail?: string;
+                  }
+                | undefined;
             alive = true;
             mfaRequested = response?.mfaRequested === true;
+            securityKeyRequested = response?.securityKeyRequested === true;
+            securityKeySupported = response?.securityKeySupported === true;
+            securityKeyReason = response?.securityKeyReason ?? null;
+            securityKeyStatus = response?.securityKeyStatus ?? null;
+            securityKeyStatusKey = response?.securityKeyStatusKey || null;
+            securityKeyStatusDetail = response?.securityKeyStatusDetail || null;
         } catch {
             alive = false;
             mfaRequested = false;
         }
 
-        const aliveChanged = alive !== this.state.alive;
-        const mfaChanged = mfaRequested !== this.state.mfaRequested;
+        const changed =
+            alive !== this.state.alive ||
+            mfaRequested !== this.state.mfaRequested ||
+            securityKeyRequested !== this.state.securityKeyRequested ||
+            securityKeySupported !== this.state.securityKeySupported ||
+            securityKeyReason !== this.state.securityKeyReason ||
+            securityKeyStatus !== this.state.securityKeyStatus ||
+            securityKeyStatusKey !== this.state.securityKeyStatusKey ||
+            securityKeyStatusDetail !== this.state.securityKeyStatusDetail;
 
-        if (aliveChanged || mfaChanged) {
-            const update: Partial<SmsMfaPanelState> = { alive, mfaRequested };
+        if (changed) {
+            const update: Partial<SmsMfaPanelState> = {
+                alive,
+                mfaRequested,
+                securityKeyRequested,
+                securityKeySupported,
+                securityKeyReason,
+                securityKeyStatus,
+                securityKeyStatusKey,
+                securityKeyStatusDetail,
+            };
             // Clear transient UI state when MFA is no longer needed
             if (!mfaRequested) {
                 update.code = '';
@@ -245,11 +305,161 @@ class SmsMfaPanel extends ConfigGeneric<ConfigGenericProps, SmsMfaPanelState> {
         }
     }
 
+    /**
+     * Starts a security-key (FIDO2) authentication run via the `startSecurityKeyMfa` sendTo.
+     * The adapter runs the ceremony in the background; live progress arrives via getMfaStatus polling.
+     */
+    private async handleStartSecurityKey(): Promise<void> {
+        this.setState({ securityKeyStarting: true, error: null, info: null });
+        try {
+            const raw: unknown = await this.props.oContext.socket.sendTo(
+                `icloud.${this.props.oContext.instance}`,
+                'startSecurityKeyMfa',
+                {},
+            );
+            const response = raw as { success?: boolean; error?: string } | undefined;
+            if (response?.success) {
+                this.setState({ securityKeyStarting: false });
+            } else {
+                this.setState({
+                    error: response?.error ?? I18n.t('custom_mfa_sk_error_start'),
+                    securityKeyStarting: false,
+                });
+            }
+        } catch (err) {
+            this.setState({
+                error: (err as Error)?.message ?? I18n.t('custom_mfa_sk_error_start'),
+                securityKeyStarting: false,
+            });
+        }
+    }
+
+    /**
+     * Resolve the live security-key status to a localized string: prefer the i18n key reported by
+     * the adapter (translated here, with the optional detail substituted into `%s`), and fall back
+     * to the adapter's plain status text only when no key is present.
+     */
+    private securityKeyStatusLabel(): string | null {
+        const { securityKeyStatusKey, securityKeyStatusDetail, securityKeyStatus } = this.state;
+        if (securityKeyStatusKey) {
+            return securityKeyStatusDetail
+                ? I18n.t(securityKeyStatusKey, securityKeyStatusDetail)
+                : I18n.t(securityKeyStatusKey);
+        }
+        return securityKeyStatus;
+    }
+
+    /**
+     * Renders the security-key (FIDO2) variant of the MFA panel: either a "login with security key"
+     * button + live status (when the host supports it) or a clear "not supported" hint.
+     */
+    private renderSecurityKey(): React.JSX.Element {
+        const { securityKeySupported, securityKeyReason, securityKeyStarting, error } = this.state;
+        const securityKeyStatus = this.securityKeyStatusLabel();
+
+        return (
+            <Box
+                sx={{
+                    mt: 2,
+                    p: 2,
+                    border: '1px solid',
+                    borderColor: 'warning.main',
+                    borderRadius: 1,
+                    backgroundColor: 'action.hover',
+                    width: '100%',
+                }}
+            >
+                <Stack
+                    direction="row"
+                    spacing={1}
+                    alignItems="center"
+                    sx={{ mb: 1.5 }}
+                >
+                    <KeyIcon
+                        color="warning"
+                        fontSize="small"
+                    />
+                    <Typography
+                        variant="subtitle1"
+                        fontWeight="bold"
+                        color="warning.main"
+                    >
+                        {I18n.t('custom_mfa_sk_title')}
+                    </Typography>
+                </Stack>
+
+                <Typography
+                    variant="body2"
+                    sx={{ mb: 1.5 }}
+                >
+                    {I18n.t('custom_mfa_sk_description')}
+                </Typography>
+
+                <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    sx={{ mb: 2, whiteSpace: 'pre-line' }}
+                >
+                    {I18n.t('custom_mfa_sk_help')}
+                </Typography>
+
+                {error && (
+                    <Alert
+                        severity="error"
+                        sx={{ mb: 1.5 }}
+                        onClose={() => this.setState({ error: null })}
+                    >
+                        {error}
+                    </Alert>
+                )}
+
+                {securityKeySupported ? (
+                    <Stack
+                        direction={{ xs: 'column', sm: 'row' }}
+                        spacing={1.5}
+                        alignItems={{ sm: 'center' }}
+                    >
+                        <Button
+                            variant="contained"
+                            color="warning"
+                            startIcon={
+                                securityKeyStarting ? (
+                                    <CircularProgress
+                                        size={16}
+                                        color="inherit"
+                                    />
+                                ) : (
+                                    <KeyIcon />
+                                )
+                            }
+                            onClick={() => void this.handleStartSecurityKey()}
+                            disabled={securityKeyStarting}
+                            size="small"
+                            sx={{ whiteSpace: 'nowrap' }}
+                        >
+                            {I18n.t('custom_mfa_sk_button')}
+                        </Button>
+                        {securityKeyStatus && <Typography variant="body2">{securityKeyStatus}</Typography>}
+                    </Stack>
+                ) : (
+                    <Alert severity="warning">
+                        {I18n.t('custom_mfa_sk_unsupported')} {securityKeyReason ?? ''}
+                    </Alert>
+                )}
+            </Box>
+        );
+    }
+
     renderItem(): React.JSX.Element {
-        const { alive, mfaRequested, code, smsRequesting, submitting, error, info } = this.state;
+        const { alive, mfaRequested, code, smsRequesting, submitting, error, info, securityKeyRequested } = this.state;
 
         if (!alive || !mfaRequested) {
             return <></>;
+        }
+
+        // Security-key accounts can't use SMS/codes at all — show the FIDO2 panel instead.
+        if (securityKeyRequested) {
+            return this.renderSecurityKey();
         }
 
         const busy = smsRequesting || submitting;

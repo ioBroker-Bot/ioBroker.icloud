@@ -118,5 +118,21 @@
 	"custom_mfa_success": "Codice accettato — autenticazione riuscita",
 	"custom_mfa_error_invalid": "Codice non valido — deve essere esattamente 6 cifre",
 	"custom_mfa_error_sms_failed": "Impossibile richiedere il codice SMS",
-	"custom_mfa_error_submit_failed": "Impossibile inviare il codice"
+	"custom_mfa_error_submit_failed": "Impossibile inviare il codice",
+	"custom_mfa_sk_title": "Chiave di sicurezza richiesta",
+	"custom_mfa_sk_description": "Questo account Apple usa una chiave di sicurezza hardware (FIDO2); per questi account Apple disattiva SMS e codici di verifica. Fai clic sul pulsante qui sotto: l'adapter resta pronto per circa 5 minuti e cerca la tua chiave ogni pochi secondi. Collegala (o lasciala collegata); appena viene rilevata lampeggia: toccala una volta.",
+	"custom_mfa_sk_button": "Accedi con chiave di sicurezza",
+	"custom_mfa_sk_starting": "Avvio in corso…",
+	"custom_mfa_sk_unsupported": "L'accesso con chiave di sicurezza non è disponibile su questo host:",
+	"custom_mfa_sk_error_start": "Impossibile avviare l'accesso con chiave di sicurezza",
+	"custom_mfa_sk_help": "Niente paura, è sicuro e semplice: una chiave di sicurezza è una piccola chiavetta USB (ad esempio una YubiKey). Non digiti alcuna password e non si può rompere nulla.\n1. Fai clic sul pulsante qui sotto.\n2. Collega la chiave a una porta USB (se non lo è già).\n3. Attendi che lampeggi.\n4. Tocca una volta con il dito la chiave che lampeggia.\nFatto. Se non funziona al primo tentativo, fai di nuovo clic sul pulsante.",
+	"custom_mfa_sk_status_ready": "Pronto: fai clic sul pulsante qui sotto per iniziare.",
+	"custom_mfa_sk_status_waiting": "In attesa di una chiave di sicurezza: collegala…",
+	"custom_mfa_sk_status_detected": "Chiave di sicurezza rilevata (%s): verifica in corso…",
+	"custom_mfa_sk_status_signing": "Tocca ora la tua chiave di sicurezza: dovrebbe lampeggiare…",
+	"custom_mfa_sk_status_verifying": "Chiave toccata: verifica con Apple…",
+	"custom_mfa_sk_status_success": "Chiave di sicurezza accettata ✓",
+	"custom_mfa_sk_status_nomatch": "Ancora nessuna chiave corrispondente: nuovo tentativo (tocca la chiave che lampeggia)…",
+	"custom_mfa_sk_status_timeout": "Tempo scaduto: nessuna chiave toccata in tempo.",
+	"custom_mfa_sk_status_error": "Errore: %s"
 }

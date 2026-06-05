@@ -118,5 +118,21 @@
 	"custom_mfa_success": "Kod zaakceptowany — uwierzytelnianie powiodło się",
 	"custom_mfa_error_invalid": "Nieprawidłowy kod — musi mieć dokładnie 6 cyfr",
 	"custom_mfa_error_sms_failed": "Nie udało się zażyć kodu SMS",
-	"custom_mfa_error_submit_failed": "Nie udało się wysłać kodu"
+	"custom_mfa_error_submit_failed": "Nie udało się wysłać kodu",
+	"custom_mfa_sk_title": "Wymagany klucz bezpieczeństwa",
+	"custom_mfa_sk_description": "To konto Apple używa sprzętowego klucza bezpieczeństwa (FIDO2); Apple wyłącza dla takich kont SMS-y i kody weryfikacyjne. Kliknij przycisk poniżej: adapter pozostaje gotowy przez około 5 minut i co kilka sekund szuka Twojego klucza. Podłącz go (lub zostaw podłączony); gdy zostanie wykryty, zacznie migać — wtedy dotknij go raz.",
+	"custom_mfa_sk_button": "Zaloguj się kluczem bezpieczeństwa",
+	"custom_mfa_sk_starting": "Uruchamianie…",
+	"custom_mfa_sk_unsupported": "Logowanie kluczem bezpieczeństwa nie jest dostępne na tym hoście:",
+	"custom_mfa_sk_error_start": "Nie udało się rozpocząć logowania kluczem bezpieczeństwa",
+	"custom_mfa_sk_help": "Bez obaw, to bezpieczne i proste: klucz bezpieczeństwa to mały pendrive USB (np. YubiKey). Nie wpisujesz żadnego hasła i nic nie może się zepsuć.\n1. Kliknij przycisk poniżej.\n2. Podłącz klucz do portu USB (jeśli jeszcze nie jest).\n3. Poczekaj, aż zacznie migać.\n4. Dotknij raz palcem migającego klucza.\nGotowe. Jeśli nie uda się za pierwszym razem, po prostu kliknij przycisk ponownie.",
+	"custom_mfa_sk_status_ready": "Gotowe — kliknij przycisk poniżej, aby rozpocząć.",
+	"custom_mfa_sk_status_waiting": "Oczekiwanie na klucz bezpieczeństwa — podłącz go…",
+	"custom_mfa_sk_status_detected": "Wykryto klucz bezpieczeństwa (%s) — sprawdzanie…",
+	"custom_mfa_sk_status_signing": "Dotknij teraz swojego klucza bezpieczeństwa — powinien migać…",
+	"custom_mfa_sk_status_verifying": "Dotknięto klucza — weryfikacja w Apple…",
+	"custom_mfa_sk_status_success": "Klucz bezpieczeństwa zaakceptowany ✓",
+	"custom_mfa_sk_status_nomatch": "Jeszcze brak pasującego klucza — ponawianie (dotknij migającego klucza)…",
+	"custom_mfa_sk_status_timeout": "Przekroczono czas — nie dotknięto klucza na czas.",
+	"custom_mfa_sk_status_error": "Błąd: %s"
 }

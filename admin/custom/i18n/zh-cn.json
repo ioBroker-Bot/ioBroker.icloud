@@ -118,5 +118,21 @@
 	"custom_mfa_success": "代码已接受 — 身份验证成功",
 	"custom_mfa_error_invalid": "无效代码 — 必须恰好是6位数字",
 	"custom_mfa_error_sms_failed": "请求短信验证码失败",
-	"custom_mfa_error_submit_failed": "提交代码失败"
+	"custom_mfa_error_submit_failed": "提交代码失败",
+	"custom_mfa_sk_title": "需要安全密钥",
+	"custom_mfa_sk_description": "此 Apple 账户使用硬件安全密钥（FIDO2）；Apple 对此类账户禁用短信和验证码。请点击下方按钮：适配器随后会保持就绪约 5 分钟，并每隔几秒查找你的密钥。插入密钥（或保持插入）；一旦被检测到，它会闪烁——这时轻触一次即可。",
+	"custom_mfa_sk_button": "使用安全密钥登录",
+	"custom_mfa_sk_starting": "正在启动…",
+	"custom_mfa_sk_unsupported": "此主机不支持安全密钥登录：",
+	"custom_mfa_sk_error_start": "无法启动安全密钥登录",
+	"custom_mfa_sk_help": "别担心，这既安全又简单：安全密钥是一个小巧的 USB 设备（例如 YubiKey）。你无需输入任何密码，也不会损坏任何东西。\n1. 点击下方按钮。\n2. 将密钥插入 USB 端口（如果尚未插入）。\n3. 等待它开始闪烁。\n4. 用手指轻触闪烁的密钥一次。\n完成。如果第一次不成功，再次点击按钮即可。",
+	"custom_mfa_sk_status_ready": "就绪——点击下方按钮开始。",
+	"custom_mfa_sk_status_waiting": "正在等待安全密钥——请插入…",
+	"custom_mfa_sk_status_detected": "已检测到安全密钥（%s）——正在检查…",
+	"custom_mfa_sk_status_signing": "现在请轻触你的安全密钥——它应该正在闪烁…",
+	"custom_mfa_sk_status_verifying": "已触碰密钥——正在向 Apple 验证…",
+	"custom_mfa_sk_status_success": "安全密钥已接受 ✓",
+	"custom_mfa_sk_status_nomatch": "尚无匹配的密钥——正在重试（请轻触闪烁的密钥）…",
+	"custom_mfa_sk_status_timeout": "已超时——未及时触碰任何密钥。",
+	"custom_mfa_sk_status_error": "错误：%s"
 }

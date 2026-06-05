@@ -118,5 +118,21 @@
 	"custom_mfa_success": "Code accepted — authentication successful",
 	"custom_mfa_error_invalid": "Invalid code — must be exactly 6 digits",
 	"custom_mfa_error_sms_failed": "Failed to request SMS code",
-	"custom_mfa_error_submit_failed": "Failed to submit code"
+	"custom_mfa_error_submit_failed": "Failed to submit code",
+	"custom_mfa_sk_title": "Security Key Required",
+	"custom_mfa_sk_description": "This Apple account uses a hardware security key (FIDO2); Apple disables SMS and verification codes for such accounts. Click the button below: the adapter then stays ready for about 5 minutes and checks every few seconds for your key. Plug it in (or leave it plugged in); as soon as it is detected it blinks — then touch it once.",
+	"custom_mfa_sk_button": "Login with security key",
+	"custom_mfa_sk_starting": "Starting…",
+	"custom_mfa_sk_unsupported": "Security-key login is not available on this host:",
+	"custom_mfa_sk_error_start": "Failed to start security-key login",
+	"custom_mfa_sk_help": "Don't worry — this is safe and simple: a security key is a small USB stick (e.g. a YubiKey). You don't type any password and nothing can break.\n1. Click the button below.\n2. Plug the key into a USB port (if it isn't already).\n3. Wait until it blinks.\n4. Touch the blinking key once with your finger.\nDone. If it doesn't work the first time, just click the button again.",
+	"custom_mfa_sk_status_ready": "Ready — click the button below to start.",
+	"custom_mfa_sk_status_waiting": "Waiting for a security key — please plug it in…",
+	"custom_mfa_sk_status_detected": "Security key detected (%s) — checking…",
+	"custom_mfa_sk_status_signing": "Touch your security key now — it should be blinking…",
+	"custom_mfa_sk_status_verifying": "Key touched — verifying with Apple…",
+	"custom_mfa_sk_status_success": "Security key accepted ✓",
+	"custom_mfa_sk_status_nomatch": "No matching key yet — retrying (touch the blinking key)…",
+	"custom_mfa_sk_status_timeout": "Timed out — no key was touched in time.",
+	"custom_mfa_sk_status_error": "Error: %s"
 }

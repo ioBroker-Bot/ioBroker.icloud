@@ -118,5 +118,21 @@
 	"custom_mfa_success": "Código aceite — autenticação bem-sucedida",
 	"custom_mfa_error_invalid": "Código inválido — deve ter exatamente 6 dígitos",
 	"custom_mfa_error_sms_failed": "Falha ao solicitar código SMS",
-	"custom_mfa_error_submit_failed": "Falha ao enviar código"
+	"custom_mfa_error_submit_failed": "Falha ao enviar código",
+	"custom_mfa_sk_title": "Chave de segurança necessária",
+	"custom_mfa_sk_description": "Esta conta Apple usa uma chave de segurança de hardware (FIDO2); a Apple desativa SMS e códigos de verificação para essas contas. Clique no botão abaixo: o adaptador fica pronto por cerca de 5 minutos e procura a sua chave a cada poucos segundos. Conecte-a (ou deixe-a conectada); assim que for detectada, ela pisca — então toque nela uma vez.",
+	"custom_mfa_sk_button": "Entrar com chave de segurança",
+	"custom_mfa_sk_starting": "Iniciando…",
+	"custom_mfa_sk_unsupported": "O login com chave de segurança não está disponível neste host:",
+	"custom_mfa_sk_error_start": "Falha ao iniciar o login com chave de segurança",
+	"custom_mfa_sk_help": "Não se preocupe, é seguro e simples: uma chave de segurança é um pequeno pen USB (por exemplo, uma YubiKey). Você não digita nenhuma senha e nada pode quebrar.\n1. Clique no botão abaixo.\n2. Conecte a chave a uma porta USB (se ainda não estiver).\n3. Aguarde até ela piscar.\n4. Toque uma vez na chave que pisca com o dedo.\nPronto. Se não funcionar na primeira vez, basta clicar no botão novamente.",
+	"custom_mfa_sk_status_ready": "Pronto — clique no botão abaixo para começar.",
+	"custom_mfa_sk_status_waiting": "Aguardando uma chave de segurança — conecte-a…",
+	"custom_mfa_sk_status_detected": "Chave de segurança detectada (%s) — verificando…",
+	"custom_mfa_sk_status_signing": "Toque agora na sua chave de segurança — ela deve estar piscando…",
+	"custom_mfa_sk_status_verifying": "Chave tocada — verificando com a Apple…",
+	"custom_mfa_sk_status_success": "Chave de segurança aceita ✓",
+	"custom_mfa_sk_status_nomatch": "Ainda nenhuma chave correspondente — tentando novamente (toque na chave que pisca)…",
+	"custom_mfa_sk_status_timeout": "Tempo esgotado — nenhuma chave foi tocada a tempo.",
+	"custom_mfa_sk_status_error": "Erro: %s"
 }

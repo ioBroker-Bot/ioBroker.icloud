@@ -118,5 +118,21 @@
 	"custom_mfa_success": "Code geaccepteerd — authenticatie geslaagd",
 	"custom_mfa_error_invalid": "Ongeldige code — moet exact 6 cijfers bevatten",
 	"custom_mfa_error_sms_failed": "Kan SMS-code niet aanvragen",
-	"custom_mfa_error_submit_failed": "Kan code niet verzenden"
+	"custom_mfa_error_submit_failed": "Kan code niet verzenden",
+	"custom_mfa_sk_title": "Beveiligingssleutel vereist",
+	"custom_mfa_sk_description": "Dit Apple-account gebruikt een hardware-beveiligingssleutel (FIDO2); Apple schakelt sms en verificatiecodes uit voor zulke accounts. Klik op de knop hieronder: de adapter blijft dan ongeveer 5 minuten gereed en zoekt elke paar seconden naar je sleutel. Steek hem in (of laat hem zitten); zodra hij wordt herkend, knippert hij — raak hem dan één keer aan.",
+	"custom_mfa_sk_button": "Inloggen met beveiligingssleutel",
+	"custom_mfa_sk_starting": "Bezig met starten…",
+	"custom_mfa_sk_unsupported": "Inloggen met beveiligingssleutel is niet beschikbaar op deze host:",
+	"custom_mfa_sk_error_start": "Kan inloggen met beveiligingssleutel niet starten",
+	"custom_mfa_sk_help": "Geen zorgen, het is veilig en eenvoudig: een beveiligingssleutel is een klein USB-stickje (bijvoorbeeld een YubiKey). Je typt geen wachtwoord in en er kan niets kapotgaan.\n1. Klik op de knop hieronder.\n2. Steek de sleutel in een USB-poort (als dat nog niet zo is).\n3. Wacht tot hij knippert.\n4. Raak de knipperende sleutel één keer aan met je vinger.\nKlaar. Werkt het niet de eerste keer, klik dan gewoon opnieuw op de knop.",
+	"custom_mfa_sk_status_ready": "Gereed — klik op de knop hieronder om te starten.",
+	"custom_mfa_sk_status_waiting": "Wachten op een beveiligingssleutel — steek hem in…",
+	"custom_mfa_sk_status_detected": "Beveiligingssleutel gedetecteerd (%s) — bezig met controleren…",
+	"custom_mfa_sk_status_signing": "Raak nu je beveiligingssleutel aan — hij zou moeten knipperen…",
+	"custom_mfa_sk_status_verifying": "Sleutel aangeraakt — verifiëren bij Apple…",
+	"custom_mfa_sk_status_success": "Beveiligingssleutel geaccepteerd ✓",
+	"custom_mfa_sk_status_nomatch": "Nog geen passende sleutel — opnieuw proberen (raak de knipperende sleutel aan)…",
+	"custom_mfa_sk_status_timeout": "Time-out — er is niet op tijd een sleutel aangeraakt.",
+	"custom_mfa_sk_status_error": "Fout: %s"
 }

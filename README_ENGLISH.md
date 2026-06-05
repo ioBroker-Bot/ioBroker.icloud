@@ -48,6 +48,33 @@ This adapter integrates your Apple iCloud account with ioBroker. It gives you ac
 
 > **Note:** Other 2FA methods (trusted device push etc.) may be supported by the underlying API but have not been tested.
 
+### Security key (FIDO2 / hardware key)
+
+If your Apple ID is protected by a **hardware security key** (FIDO2, e.g. a YubiKey), Apple disables SMS and verification codes for that account — the only way to satisfy the MFA challenge is a WebAuthn assertion from the physical key.
+
+> **Linux only.** Security-key login uses the `libfido2` command-line tools, which talk to the key over USB-HID. It therefore works **only on Linux** with the `fido2-tools` package installed and read access to the `/dev/hidraw*` device nodes. On Windows, macOS, or any host without the tools the adapter reports security-key login as *not available* and the panel shows the reason.
+
+**Setup on Debian 13 (Trixie)** — verified working:
+
+1. Install the FIDO2 CLI tools:
+   ```bash
+   sudo apt update && sudo apt install fido2-tools
+   ```
+2. Grant the ioBroker user read access to the key. The shipped `60-fido-id.rules` only *tags* the key; add `70-u2f.rules` to actually open it for the `plugdev` group:
+   ```bash
+   echo 'ACTION=="add|change", SUBSYSTEM=="hidraw", ENV{ID_SECURITY_TOKEN}=="1", GROUP="plugdev", MODE="0660", TAG+="uaccess"' | sudo tee /etc/udev/rules.d/70-u2f.rules
+   sudo udevadm control --reload && sudo udevadm trigger --subsystem-match=hidraw
+   ```
+   Make sure the ioBroker user is in `plugdev` (`sudo usermod -aG plugdev iobroker`, then restart ioBroker).
+3. Plug in the key and confirm it is visible to that user:
+   ```bash
+   fido2-token -L      # e.g. /dev/hidraw1: vendor=0x1050, product=0x0407 (YubiKey …)
+   ```
+
+**Using it:** when Apple presents the security-key challenge (`mfa.required` is `true`), the adapter's instance configuration shows a **security-key panel**. Click **Login with security key** — the adapter then stays ready for ~5 minutes and checks every few seconds for a key Apple accepts; plug in and touch the key when it blinks. The button reflects the running state and the live status follows the ceremony. Alternatively, set the state `icloud.<instance>.mfa.useSecurityKey` to `true` to start the same ceremony without the admin UI.
+
+**Proxmox / virtualized hosts:** the key only needs to appear as a `/dev/hidraw*` node inside the guest that runs ioBroker. For **VMs**, use USB passthrough — see [Proxmox wiki: USB Devices in Virtual Machines](https://pve.proxmox.com/wiki/USB_Devices_in_Virtual_Machines). For **LXC containers** there is no one-click option: pass the hidraw device through with a `lxc.cgroup2.devices.allow` rule plus a bind-mount/mknod of the node (a privileged container makes the permissions trivial).
+
 ---
 
 ## Find My

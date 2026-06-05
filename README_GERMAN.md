@@ -48,6 +48,33 @@ Dieser Adapter integriert dein Apple iCloud-Konto mit ioBroker. Er bietet Zugrif
 
 > **Hinweis:** Andere 2FA-Methoden (Push an vertrauenswürdiges Gerät etc.) werden möglicherweise von der API unterstützt, wurden aber nicht getestet.
 
+### Sicherheitsschlüssel (FIDO2 / Hardware-Key)
+
+Ist deine Apple ID mit einem **Hardware-Sicherheitsschlüssel** (FIDO2, z. B. einem YubiKey) geschützt, deaktiviert Apple für dieses Konto SMS und Bestätigungscodes — die MFA-Abfrage lässt sich dann nur mit einer WebAuthn-Assertion des physischen Schlüssels erfüllen.
+
+> **Nur unter Linux.** Der Sicherheitsschlüssel-Login nutzt die `libfido2`-Kommandozeilen-Tools, die per USB-HID mit dem Schlüssel sprechen. Er funktioniert daher **nur unter Linux** mit installiertem Paket `fido2-tools` und Lesezugriff auf die `/dev/hidraw*`-Geräteknoten. Unter Windows, macOS oder auf einem Host ohne die Tools meldet der Adapter den Login als *nicht verfügbar* und das Panel zeigt den Grund an.
+
+**Einrichtung unter Debian 13 (Trixie)** — getestet:
+
+1. FIDO2-CLI-Tools installieren:
+   ```bash
+   sudo apt update && sudo apt install fido2-tools
+   ```
+2. Dem ioBroker-Benutzer Lesezugriff auf den Schlüssel geben. Die mitgelieferte `60-fido-id.rules` *markiert* den Schlüssel nur; mit `70-u2f.rules` wird er für die Gruppe `plugdev` geöffnet:
+   ```bash
+   echo 'ACTION=="add|change", SUBSYSTEM=="hidraw", ENV{ID_SECURITY_TOKEN}=="1", GROUP="plugdev", MODE="0660", TAG+="uaccess"' | sudo tee /etc/udev/rules.d/70-u2f.rules
+   sudo udevadm control --reload && sudo udevadm trigger --subsystem-match=hidraw
+   ```
+   Stelle sicher, dass der ioBroker-Benutzer in `plugdev` ist (`sudo usermod -aG plugdev iobroker`, danach ioBroker neu starten).
+3. Schlüssel einstecken und prüfen, dass er für diesen Benutzer sichtbar ist:
+   ```bash
+   fido2-token -L      # z. B. /dev/hidraw1: vendor=0x1050, product=0x0407 (YubiKey …)
+   ```
+
+**Verwendung:** Stellt Apple die Sicherheitsschlüssel-Abfrage (`mfa.required` ist `true`), zeigt die Instanz-Konfiguration des Adapters ein **Sicherheitsschlüssel-Panel**. Klicke auf **Mit Sicherheitsschlüssel anmelden** — der Adapter ist dann ca. 5 Minuten bereit und sucht alle paar Sekunden nach einem Schlüssel, den Apple akzeptiert; stecke ihn ein und berühre ihn, wenn er blinkt. Der Button zeigt den laufenden Zustand, die Live-Statuszeile folgt dem Ablauf. Alternativ startest du dieselbe Zeremonie ohne Admin-UI, indem du den State `icloud.<instance>.mfa.useSecurityKey` auf `true` setzt.
+
+**Proxmox / virtualisierte Hosts:** Der Schlüssel muss lediglich als `/dev/hidraw*`-Knoten **innerhalb** des Gasts auftauchen, der ioBroker betreibt. Für **VMs** USB-Passthrough verwenden — siehe [Proxmox-Wiki: USB Devices in Virtual Machines](https://pve.proxmox.com/wiki/USB_Devices_in_Virtual_Machines). Für **LXC-Container** gibt es keine Ein-Klick-Lösung: das hidraw-Gerät per `lxc.cgroup2.devices.allow`-Regel plus Bind-Mount/mknod des Knotens durchreichen (ein privilegierter Container macht die Rechte trivial).
+
 ---
 
 ## Wo ist? (Find My)

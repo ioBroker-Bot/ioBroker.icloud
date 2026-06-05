@@ -134,5 +134,6 @@
 	"custom_mfa_sk_status_success": "Chave de segurança aceita ✓",
 	"custom_mfa_sk_status_nomatch": "Ainda nenhuma chave correspondente — tentando novamente (toque na chave que pisca)…",
 	"custom_mfa_sk_status_timeout": "Tempo esgotado — nenhuma chave foi tocada a tempo.",
-	"custom_mfa_sk_status_error": "Erro: %s"
+	"custom_mfa_sk_status_error": "Erro: %s",
+	"custom_mfa_sk_running": "Deteção em curso — toque na sua chave…"
 }

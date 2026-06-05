@@ -134,5 +134,6 @@
 	"custom_mfa_sk_status_success": "安全密钥已接受 ✓",
 	"custom_mfa_sk_status_nomatch": "尚无匹配的密钥——正在重试（请轻触闪烁的密钥）…",
 	"custom_mfa_sk_status_timeout": "已超时——未及时触碰任何密钥。",
-	"custom_mfa_sk_status_error": "错误：%s"
+	"custom_mfa_sk_status_error": "错误：%s",
+	"custom_mfa_sk_running": "正在检测——请轻触你的密钥…"
 }

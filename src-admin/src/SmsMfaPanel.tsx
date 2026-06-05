@@ -43,6 +43,8 @@ interface SmsMfaPanelState extends ConfigGenericState {
     securityKeyStatusDetail: string | null;
     /** True while the "Login with security key" sendTo call is in flight. */
     securityKeyStarting: boolean;
+    /** True while the adapter's background security-key ceremony is running (the whole window). */
+    securityKeyRunning: boolean;
 }
 
 /**
@@ -81,6 +83,7 @@ class SmsMfaPanel extends ConfigGeneric<ConfigGenericProps, SmsMfaPanelState> {
             securityKeyStatusKey: null,
             securityKeyStatusDetail: null,
             securityKeyStarting: false,
+            securityKeyRunning: false,
         } satisfies Partial<SmsMfaPanelState>);
     }
 
@@ -176,6 +179,7 @@ class SmsMfaPanel extends ConfigGeneric<ConfigGenericProps, SmsMfaPanelState> {
         let securityKeyStatus: string | null = null;
         let securityKeyStatusKey: string | null = null;
         let securityKeyStatusDetail: string | null = null;
+        let securityKeyRunning = false;
         try {
             const raw: unknown = await this.props.oContext.socket.sendTo(
                 `icloud.${this.props.oContext.instance}`,
@@ -191,6 +195,7 @@ class SmsMfaPanel extends ConfigGeneric<ConfigGenericProps, SmsMfaPanelState> {
                       securityKeyStatus?: string;
                       securityKeyStatusKey?: string;
                       securityKeyStatusDetail?: string;
+                      securityKeyRunning?: boolean;
                   }
                 | undefined;
             alive = true;
@@ -201,6 +206,7 @@ class SmsMfaPanel extends ConfigGeneric<ConfigGenericProps, SmsMfaPanelState> {
             securityKeyStatus = response?.securityKeyStatus ?? null;
             securityKeyStatusKey = response?.securityKeyStatusKey || null;
             securityKeyStatusDetail = response?.securityKeyStatusDetail || null;
+            securityKeyRunning = response?.securityKeyRunning === true;
         } catch {
             alive = false;
             mfaRequested = false;
@@ -214,7 +220,8 @@ class SmsMfaPanel extends ConfigGeneric<ConfigGenericProps, SmsMfaPanelState> {
             securityKeyReason !== this.state.securityKeyReason ||
             securityKeyStatus !== this.state.securityKeyStatus ||
             securityKeyStatusKey !== this.state.securityKeyStatusKey ||
-            securityKeyStatusDetail !== this.state.securityKeyStatusDetail;
+            securityKeyStatusDetail !== this.state.securityKeyStatusDetail ||
+            securityKeyRunning !== this.state.securityKeyRunning;
 
         if (changed) {
             const update: Partial<SmsMfaPanelState> = {
@@ -226,6 +233,7 @@ class SmsMfaPanel extends ConfigGeneric<ConfigGenericProps, SmsMfaPanelState> {
                 securityKeyStatus,
                 securityKeyStatusKey,
                 securityKeyStatusDetail,
+                securityKeyRunning,
             };
             // Clear transient UI state when MFA is no longer needed
             if (!mfaRequested) {
@@ -354,8 +362,11 @@ class SmsMfaPanel extends ConfigGeneric<ConfigGenericProps, SmsMfaPanelState> {
      * button + live status (when the host supports it) or a clear "not supported" hint.
      */
     private renderSecurityKey(): React.JSX.Element {
-        const { securityKeySupported, securityKeyReason, securityKeyStarting, error } = this.state;
+        const { securityKeySupported, securityKeyReason, securityKeyStarting, securityKeyRunning, error } = this.state;
         const securityKeyStatus = this.securityKeyStatusLabel();
+        // A detection/sign run is in flight either while the start call is pending (securityKeyStarting)
+        // or for the whole background ceremony reported by the adapter (securityKeyRunning).
+        const running = securityKeyStarting || securityKeyRunning;
 
         return (
             <Box
@@ -421,9 +432,9 @@ class SmsMfaPanel extends ConfigGeneric<ConfigGenericProps, SmsMfaPanelState> {
                     >
                         <Button
                             variant="contained"
-                            color="warning"
+                            color={running ? 'info' : 'warning'}
                             startIcon={
-                                securityKeyStarting ? (
+                                running ? (
                                     <CircularProgress
                                         size={16}
                                         color="inherit"
@@ -433,11 +444,11 @@ class SmsMfaPanel extends ConfigGeneric<ConfigGenericProps, SmsMfaPanelState> {
                                 )
                             }
                             onClick={() => void this.handleStartSecurityKey()}
-                            disabled={securityKeyStarting}
+                            disabled={running}
                             size="small"
                             sx={{ whiteSpace: 'nowrap' }}
                         >
-                            {I18n.t('custom_mfa_sk_button')}
+                            {running ? I18n.t('custom_mfa_sk_running') : I18n.t('custom_mfa_sk_button')}
                         </Button>
                         {securityKeyStatus && <Typography variant="body2">{securityKeyStatus}</Typography>}
                     </Stack>

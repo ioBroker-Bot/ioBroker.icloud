@@ -134,5 +134,6 @@
 	"custom_mfa_sk_status_success": "Beveiligingssleutel geaccepteerd ✓",
 	"custom_mfa_sk_status_nomatch": "Nog geen passende sleutel — opnieuw proberen (raak de knipperende sleutel aan)…",
 	"custom_mfa_sk_status_timeout": "Time-out — er is niet op tijd een sleutel aangeraakt.",
-	"custom_mfa_sk_status_error": "Fout: %s"
+	"custom_mfa_sk_status_error": "Fout: %s",
+	"custom_mfa_sk_running": "Detectie bezig — raak je sleutel aan…"
 }

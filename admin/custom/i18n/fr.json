@@ -134,5 +134,6 @@
 	"custom_mfa_sk_status_success": "Clé de sécurité acceptée ✓",
 	"custom_mfa_sk_status_nomatch": "Pas encore de clé correspondante — nouvelle tentative (touchez la clé qui clignote)…",
 	"custom_mfa_sk_status_timeout": "Délai dépassé — aucune clé n'a été touchée à temps.",
-	"custom_mfa_sk_status_error": "Erreur : %s"
+	"custom_mfa_sk_status_error": "Erreur : %s",
+	"custom_mfa_sk_running": "Détection en cours — touchez votre clé…"
 }

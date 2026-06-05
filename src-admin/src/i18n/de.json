@@ -134,5 +134,6 @@
 	"custom_mfa_sk_status_success": "Sicherheitsschlüssel akzeptiert ✓",
 	"custom_mfa_sk_status_nomatch": "Noch kein passender Schlüssel – neuer Versuch (berühre den blinkenden Schlüssel)…",
 	"custom_mfa_sk_status_timeout": "Zeitüberschreitung – es wurde kein Schlüssel rechtzeitig berührt.",
-	"custom_mfa_sk_status_error": "Fehler: %s"
+	"custom_mfa_sk_status_error": "Fehler: %s",
+	"custom_mfa_sk_running": "Erkennung läuft – Schlüssel berühren…"
 }

@@ -134,5 +134,6 @@
 	"custom_mfa_sk_status_success": "Security key accepted ✓",
 	"custom_mfa_sk_status_nomatch": "No matching key yet — retrying (touch the blinking key)…",
 	"custom_mfa_sk_status_timeout": "Timed out — no key was touched in time.",
-	"custom_mfa_sk_status_error": "Error: %s"
+	"custom_mfa_sk_status_error": "Error: %s",
+	"custom_mfa_sk_running": "Detection running — touch your key…"
 }

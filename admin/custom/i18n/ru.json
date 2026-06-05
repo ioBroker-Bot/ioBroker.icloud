@@ -134,5 +134,6 @@
 	"custom_mfa_sk_status_success": "Ключ безопасности принят ✓",
 	"custom_mfa_sk_status_nomatch": "Подходящий ключ пока не найден — повтор (коснитесь мигающего ключа)…",
 	"custom_mfa_sk_status_timeout": "Время истекло — ключ не был нажат вовремя.",
-	"custom_mfa_sk_status_error": "Ошибка: %s"
+	"custom_mfa_sk_status_error": "Ошибка: %s",
+	"custom_mfa_sk_running": "Идёт поиск — коснитесь ключа…"
 }

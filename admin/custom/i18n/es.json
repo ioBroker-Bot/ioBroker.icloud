@@ -134,5 +134,6 @@
 	"custom_mfa_sk_status_success": "Llave de seguridad aceptada ✓",
 	"custom_mfa_sk_status_nomatch": "Aún no hay ninguna llave válida: reintentando (toca la llave que parpadea)…",
 	"custom_mfa_sk_status_timeout": "Tiempo agotado: no se tocó ninguna llave a tiempo.",
-	"custom_mfa_sk_status_error": "Error: %s"
+	"custom_mfa_sk_status_error": "Error: %s",
+	"custom_mfa_sk_running": "Detección en curso: toca tu llave…"
 }

@@ -134,5 +134,6 @@
 	"custom_mfa_sk_status_success": "Klucz bezpieczeństwa zaakceptowany ✓",
 	"custom_mfa_sk_status_nomatch": "Jeszcze brak pasującego klucza — ponawianie (dotknij migającego klucza)…",
 	"custom_mfa_sk_status_timeout": "Przekroczono czas — nie dotknięto klucza na czas.",
-	"custom_mfa_sk_status_error": "Błąd: %s"
+	"custom_mfa_sk_status_error": "Błąd: %s",
+	"custom_mfa_sk_running": "Wykrywanie w toku — dotknij klucza…"
 }

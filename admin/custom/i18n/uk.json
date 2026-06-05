@@ -134,5 +134,6 @@
 	"custom_mfa_sk_status_success": "Ключ безпеки прийнято ✓",
 	"custom_mfa_sk_status_nomatch": "Відповідного ключа поки немає — повтор (торкніться ключа, що блимає)…",
 	"custom_mfa_sk_status_timeout": "Час вичерпано — ключ не торкнулися вчасно.",
-	"custom_mfa_sk_status_error": "Помилка: %s"
+	"custom_mfa_sk_status_error": "Помилка: %s",
+	"custom_mfa_sk_running": "Триває пошук — торкніться ключа…"
 }

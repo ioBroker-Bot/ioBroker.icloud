@@ -882,7 +882,7 @@ export default class iCloudService extends EventEmitter {
                 this._securityKeyChallenge = {
                     challenge: fsa.challenge,
                     rpId: fsa.rpId,
-                    keyHandles: keyHandles as string[],
+                    keyHandles,
                 };
                 this._log(
                     LogLevel.Debug,

@@ -761,7 +761,9 @@ class Icloud extends utils.Adapter {
     /**
      * Update the security-key status: cache it for the admin UI and mirror it to the state.
      *
-     * @param text The new human-readable status text.
+     * @param text   The new human-readable status text (English fallback, also written to the state).
+     * @param key    Optional i18n key the admin UI translates for the localized live status.
+     * @param detail Optional value substituted into the status via %s (device path, error message).
      */
     private setSecurityKeyStatus(text: string, key = '', detail = ''): void {
         this.securityKeyStatusText = text;

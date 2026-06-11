@@ -70,9 +70,6 @@ var iCloudServiceStatus = /* @__PURE__ */ ((iCloudServiceStatus2) => {
   iCloudServiceStatus2["Error"] = "Error";
   return iCloudServiceStatus2;
 })(iCloudServiceStatus || {});
-function sleep(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
 class iCloudService extends import_node_events.default {
   /**
    * The authentication store for this service instance.
@@ -94,6 +91,11 @@ class iCloudService extends import_node_events.default {
    * The options for this service instance.
    */
   options;
+  /**
+   * Cancellable delay backed by the ioBroker adapter timer (adapter.delay).
+   * Pending timers are cleared automatically when the adapter unloads.
+   */
+  delay;
   /**
    * The status of the iCloudService.
    */
@@ -139,6 +141,7 @@ class iCloudService extends import_node_events.default {
   constructor(options) {
     super();
     this.options = options;
+    this.delay = options.delay;
     if (!this.options.dataDirectory) {
       this.options.dataDirectory = import_node_path.default.join(import_node_os.default.homedir(), ".icloud");
     }
@@ -563,7 +566,7 @@ class iCloudService extends import_node_events.default {
       }
       if (devices.length === 0) {
         onProgress("waiting-for-key");
-        await sleep(Math.max(0, Math.min(pollIntervalMs, deadline - Date.now())));
+        await this.delay(Math.max(0, Math.min(pollIntervalMs, deadline - Date.now())));
         continue;
       }
       onProgress("key-detected", devices.join(", "));
@@ -571,7 +574,7 @@ class iCloudService extends import_node_events.default {
       if (!current) {
         this._log(LogLevel.Warning, "[auth] No fresh security-key challenge from Apple \u2014 retrying");
         onProgress("no-match");
-        await sleep(Math.max(0, Math.min(pollIntervalMs, deadline - Date.now())));
+        await this.delay(Math.max(0, Math.min(pollIntervalMs, deadline - Date.now())));
         continue;
       }
       const challengeRaw = (0, import_fido2.b64decode)(current.challenge);
@@ -607,7 +610,7 @@ class iCloudService extends import_node_events.default {
         }
       }
       onProgress("no-match");
-      await sleep(Math.max(0, Math.min(pollIntervalMs, deadline - Date.now())));
+      await this.delay(Math.max(0, Math.min(pollIntervalMs, deadline - Date.now())));
     }
     onProgress("timeout");
     throw new Error("Security-key authentication timed out \u2014 no matching key was touched in time.");
@@ -866,7 +869,7 @@ class iCloudService extends import_node_events.default {
     }
     for (let i = 0; i < PCS_MAX_RETRIES && !this.pcsAccess; i++) {
       this._log(LogLevel.Debug, `Waiting for PCS consent (${i + 1}/${PCS_MAX_RETRIES})...`);
-      await sleep(PCS_SLEEP_MS);
+      await this.delay(PCS_SLEEP_MS);
       await this.checkPCS();
     }
     if (!this.pcsAccess) {
@@ -886,7 +889,7 @@ class iCloudService extends import_node_events.default {
       }
       if (pcsJson.message === "Requested the device to upload cookies." || pcsJson.message === "Cookies not available yet on server.") {
         this._log(LogLevel.Debug, `PCS: ${pcsJson.message} (${attempt + 1}/${PCS_MAX_RETRIES})`);
-        await sleep(PCS_SLEEP_MS);
+        await this.delay(PCS_SLEEP_MS);
       } else {
         throw new Error(`PCS request failed for "${appName}": ${(_a = pcsJson.message) != null ? _a : JSON.stringify(pcsJson)}`);
       }

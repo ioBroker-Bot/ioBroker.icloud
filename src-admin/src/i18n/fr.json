@@ -118,5 +118,22 @@
 	"custom_mfa_success": "Code accepté — authentification réussie",
 	"custom_mfa_error_invalid": "Code invalide — doit être exactement 6 chiffres",
 	"custom_mfa_error_sms_failed": "Échec de la demande du code SMS",
-	"custom_mfa_error_submit_failed": "Échec de l'envoi du code"
+	"custom_mfa_error_submit_failed": "Échec de l'envoi du code",
+	"custom_mfa_sk_title": "Clé de sécurité requise",
+	"custom_mfa_sk_description": "Ce compte Apple utilise une clé de sécurité matérielle (FIDO2) ; Apple désactive les SMS et les codes de vérification pour ces comptes. Cliquez sur le bouton ci-dessous : l'adaptateur reste alors prêt pendant environ 5 minutes et recherche votre clé toutes les quelques secondes. Branchez-la (ou laissez-la branchée) ; dès qu'elle est détectée, elle clignote — touchez-la alors une fois.",
+	"custom_mfa_sk_button": "Se connecter avec une clé de sécurité",
+	"custom_mfa_sk_starting": "Démarrage…",
+	"custom_mfa_sk_unsupported": "La connexion par clé de sécurité n'est pas disponible sur cet hôte :",
+	"custom_mfa_sk_error_start": "Échec du démarrage de la connexion par clé de sécurité",
+	"custom_mfa_sk_help": "Pas d'inquiétude, c'est sûr et simple : une clé de sécurité est une petite clé USB (par exemple une YubiKey). Vous ne saisissez aucun mot de passe et rien ne peut être endommagé.\n1. Cliquez sur le bouton ci-dessous.\n2. Branchez la clé sur un port USB (si ce n'est pas déjà fait).\n3. Attendez qu'elle clignote.\n4. Touchez une fois la clé qui clignote avec le doigt.\nTerminé. Si cela ne fonctionne pas du premier coup, cliquez à nouveau sur le bouton.",
+	"custom_mfa_sk_status_ready": "Prêt — cliquez sur le bouton ci-dessous pour commencer.",
+	"custom_mfa_sk_status_waiting": "En attente d'une clé de sécurité — branchez-la…",
+	"custom_mfa_sk_status_detected": "Clé de sécurité détectée (%s) — vérification…",
+	"custom_mfa_sk_status_signing": "Touchez maintenant votre clé de sécurité — elle devrait clignoter…",
+	"custom_mfa_sk_status_verifying": "Clé touchée — vérification auprès d'Apple…",
+	"custom_mfa_sk_status_success": "Clé de sécurité acceptée ✓",
+	"custom_mfa_sk_status_nomatch": "Pas encore de clé correspondante — nouvelle tentative (touchez la clé qui clignote)…",
+	"custom_mfa_sk_status_timeout": "Délai dépassé — aucune clé n'a été touchée à temps.",
+	"custom_mfa_sk_status_error": "Erreur : %s",
+	"custom_mfa_sk_running": "Détection en cours — touchez votre clé…"
 }

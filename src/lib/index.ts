@@ -79,6 +79,12 @@ export interface iCloudServiceSetupOptions {
      * @default LogLevel.Debug
      */
     logger?: keyof typeof LogLevel | ((level: (typeof LogLevel)[keyof typeof LogLevel], ...args: any[]) => void);
+
+    /**
+     * Cancellable delay backed by the ioBroker adapter timer (adapter.delay).
+     * Used for all internal waits so that pending timers are cleared on adapter unload.
+     */
+    delay: (ms: number) => Promise<void>;
 }
 /**
  * The state of the iCloudService.
@@ -137,10 +143,6 @@ export interface iCloudStorageUsage {
             appleId: string;
         }>;
     };
-}
-
-function sleep(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 /**
@@ -214,6 +216,12 @@ export default class iCloudService extends EventEmitter {
     options: iCloudServiceSetupOptions;
 
     /**
+     * Cancellable delay backed by the ioBroker adapter timer (adapter.delay).
+     * Pending timers are cleared automatically when the adapter unloads.
+     */
+    delay: (ms: number) => Promise<void>;
+
+    /**
      * The status of the iCloudService.
      */
     status: iCloudServiceStatus = iCloudServiceStatus.NotStarted;
@@ -265,6 +273,7 @@ export default class iCloudService extends EventEmitter {
     constructor(options: iCloudServiceSetupOptions) {
         super();
         this.options = options;
+        this.delay = options.delay;
         if (!this.options.dataDirectory) {
             this.options.dataDirectory = path.join(os.homedir(), '.icloud');
         }
@@ -790,7 +799,7 @@ export default class iCloudService extends EventEmitter {
 
             if (devices.length === 0) {
                 onProgress('waiting-for-key');
-                await sleep(Math.max(0, Math.min(pollIntervalMs, deadline - Date.now())));
+                await this.delay(Math.max(0, Math.min(pollIntervalMs, deadline - Date.now())));
                 continue;
             }
 
@@ -803,7 +812,7 @@ export default class iCloudService extends EventEmitter {
             if (!current) {
                 this._log(LogLevel.Warning, '[auth] No fresh security-key challenge from Apple — retrying');
                 onProgress('no-match');
-                await sleep(Math.max(0, Math.min(pollIntervalMs, deadline - Date.now())));
+                await this.delay(Math.max(0, Math.min(pollIntervalMs, deadline - Date.now())));
                 continue;
             }
             const challengeRaw = b64decode(current.challenge);
@@ -847,7 +856,7 @@ export default class iCloudService extends EventEmitter {
 
             // Devices were present but none matched (or no touch yet) — pause briefly and retry.
             onProgress('no-match');
-            await sleep(Math.max(0, Math.min(pollIntervalMs, deadline - Date.now())));
+            await this.delay(Math.max(0, Math.min(pollIntervalMs, deadline - Date.now())));
         }
 
         onProgress('timeout');
@@ -1137,7 +1146,7 @@ export default class iCloudService extends EventEmitter {
         // Wait for device consent
         for (let i = 0; i < PCS_MAX_RETRIES && !this.pcsAccess; i++) {
             this._log(LogLevel.Debug, `Waiting for PCS consent (${i + 1}/${PCS_MAX_RETRIES})...`);
-            await sleep(PCS_SLEEP_MS);
+            await this.delay(PCS_SLEEP_MS);
             await this.checkPCS();
         }
         if (!this.pcsAccess) {
@@ -1164,7 +1173,7 @@ export default class iCloudService extends EventEmitter {
                 pcsJson.message === 'Cookies not available yet on server.'
             ) {
                 this._log(LogLevel.Debug, `PCS: ${pcsJson.message} (${attempt + 1}/${PCS_MAX_RETRIES})`);
-                await sleep(PCS_SLEEP_MS);
+                await this.delay(PCS_SLEEP_MS);
             } else {
                 throw new Error(`PCS request failed for "${appName}": ${pcsJson.message ?? JSON.stringify(pcsJson)}`);
             }

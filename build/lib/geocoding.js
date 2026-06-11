@@ -64,6 +64,7 @@ class ExternalGeocoder {
   apiKey;
   cache;
   log;
+  delay;
   /** ISO country code of the ioBroker system location (lower-case). */
   systemCountryCode = "";
   /** BCP 47 language tag for localized address names (e.g. 'de', 'en'). Empty = server default. */
@@ -76,13 +77,14 @@ class ExternalGeocoder {
   statFails = 0;
   /** True until the first successful geocode — used for the one-time success log. */
   firstSuccess = true;
-  constructor(provider, baseUrl, apiKey, cacheSize, log) {
+  constructor(provider, baseUrl, apiKey, cacheSize, log, delay) {
     var _a;
     this.provider = provider;
     this.baseUrl = baseUrl.replace(/\/+$/, "");
     this.apiKey = apiKey;
     this.cache = new LruCache((_a = CACHE_LIMITS[cacheSize]) != null ? _a : CACHE_LIMITS.small);
     this.log = log;
+    this.delay = delay;
   }
   // ── Public API ────────────────────────────────────────────────────────────
   /**
@@ -203,7 +205,7 @@ class ExternalGeocoder {
     if (elapsed < REQUEST_INTERVAL_MS) {
       const waitMs = REQUEST_INTERVAL_MS - elapsed;
       this.log("debug", `Geocoder (${this.provider}): rate throttle \u2014 waiting ${waitMs} ms before next request`);
-      await new Promise((resolve) => setTimeout(resolve, waitMs));
+      await this.delay(waitMs);
     }
     return true;
   }
@@ -341,11 +343,9 @@ class ExternalGeocoder {
   // ── HTTP helper ───────────────────────────────────────────────────────────
   async httpGet(url, lat, lon) {
     var _a;
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 1e4);
     try {
       const res = await fetch(url, {
-        signal: controller.signal,
+        signal: AbortSignal.timeout(1e4),
         headers: {
           "User-Agent": "ioBroker.icloud",
           Accept: "application/json",
@@ -376,7 +376,7 @@ class ExternalGeocoder {
       return await res.json();
     } catch (err) {
       const msg = (_a = err == null ? void 0 : err.message) != null ? _a : String(err);
-      if (msg.includes("aborted") || msg.includes("abort")) {
+      if (msg.includes("aborted") || msg.includes("abort") || msg.includes("timed out") || (err == null ? void 0 : err.name) === "TimeoutError") {
         this.log(
           "warn",
           `Geocoder (${this.provider}): request timed out after 10 s for (${lat}, ${lon}). The server may be unreachable or overloaded.`
@@ -395,8 +395,6 @@ class ExternalGeocoder {
         this.log("warn", `Geocoder (${this.provider}): request failed \u2014 ${msg}`);
       }
       return null;
-    } finally {
-      clearTimeout(timeout);
     }
   }
 }

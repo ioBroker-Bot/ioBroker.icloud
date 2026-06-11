@@ -28,6 +28,8 @@ export interface GeocodingResult {
 }
 
 type LogFn = (level: 'debug' | 'info' | 'warn' | 'error', msg: string) => void;
+/** Cancellable delay backed by the ioBroker adapter timer (adapter.delay). */
+type DelayFn = (ms: number) => Promise<void>;
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -90,6 +92,7 @@ export class ExternalGeocoder {
     private readonly apiKey: string;
     private readonly cache: LruCache<GeocodingResult>;
     private readonly log: LogFn;
+    private readonly delay: DelayFn;
 
     /** ISO country code of the ioBroker system location (lower-case). */
     systemCountryCode = '';
@@ -113,12 +116,14 @@ export class ExternalGeocoder {
         apiKey: string,
         cacheSize: GeocodingCacheSize,
         log: LogFn,
+        delay: DelayFn,
     ) {
         this.provider = provider;
         this.baseUrl = baseUrl.replace(/\/+$/, '');
         this.apiKey = apiKey;
         this.cache = new LruCache(CACHE_LIMITS[cacheSize] ?? CACHE_LIMITS.small);
         this.log = log;
+        this.delay = delay;
     }
 
     // ── Public API ────────────────────────────────────────────────────────────
@@ -266,7 +271,7 @@ export class ExternalGeocoder {
         if (elapsed < REQUEST_INTERVAL_MS) {
             const waitMs = REQUEST_INTERVAL_MS - elapsed;
             this.log('debug', `Geocoder (${this.provider}): rate throttle — waiting ${waitMs} ms before next request`);
-            await new Promise<void>(resolve => setTimeout(resolve, waitMs));
+            await this.delay(waitMs);
         }
 
         return true;
@@ -438,11 +443,9 @@ export class ExternalGeocoder {
     // ── HTTP helper ───────────────────────────────────────────────────────────
 
     private async httpGet<T>(url: string, lat: number, lon: number): Promise<T | null> {
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 10_000);
         try {
             const res = await fetch(url, {
-                signal: controller.signal,
+                signal: AbortSignal.timeout(10_000),
                 headers: {
                     'User-Agent': 'ioBroker.icloud',
                     Accept: 'application/json',
@@ -476,7 +479,12 @@ export class ExternalGeocoder {
             return (await res.json()) as T;
         } catch (err) {
             const msg = (err as Error)?.message ?? String(err);
-            if (msg.includes('aborted') || msg.includes('abort')) {
+            if (
+                msg.includes('aborted') ||
+                msg.includes('abort') ||
+                msg.includes('timed out') ||
+                (err as Error)?.name === 'TimeoutError'
+            ) {
                 this.log(
                     'warn',
                     `Geocoder (${this.provider}): request timed out after 10 s for (${lat}, ${lon}). ` +
@@ -498,8 +506,6 @@ export class ExternalGeocoder {
                 this.log('warn', `Geocoder (${this.provider}): request failed — ${msg}`);
             }
             return null;
-        } finally {
-            clearTimeout(timeout);
         }
     }
 }

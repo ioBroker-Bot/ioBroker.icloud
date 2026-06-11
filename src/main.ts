@@ -848,6 +848,7 @@ class Icloud extends utils.Adapter {
                     this.log.error(`[icloud.js] ${msg}`);
                 }
             },
+            delay: (ms: number) => this.delay(ms),
         });
 
         this.icloud.on('Started', () => {
@@ -909,14 +910,12 @@ class Icloud extends utils.Adapter {
             if (msg.startsWith('RATE_LIMITED')) {
                 const retryMinutes = 61; // Apple seems to use a 1-hour rate limit, but we add a buffer to be safe
                 const retryTime = new Date(new Date().getTime() + retryMinutes * 60 * 1000);
-                this.log.warn(
-                    `Apple Rate-Limit erkannt — nächster Versuch in ${retryTime.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })} `,
-                );
+                this.log.warn(`Apple rate limit detected — next attempt at ${retryTime.toISOString()}`);
                 this.setTimeout(
                     () => {
-                        this.log.info('Rate-Limit Wartezeit abgelaufen — starte erneuten Login-Versuch');
+                        this.log.info('Rate limit wait time elapsed — starting another login attempt');
                         this.connectToiCloud().catch(() => {
-                            /* Error-Event wird ausgelöst */
+                            /* error event is emitted */
                         });
                     },
                     retryMinutes * 60 * 1000,
@@ -929,17 +928,17 @@ class Icloud extends utils.Adapter {
                 const humanMsg = msg.replace(/^STALE_SESSION_401: /, '');
                 if (this.staleSessionRetryDone) {
                     this.log.error(
-                        `Neuversuch nach veralteter Session ebenfalls fehlgeschlagen — bitte Zugangsdaten prüfen. (${humanMsg})`,
+                        `Retry after stale session also failed — please check your credentials. (${humanMsg})`,
                     );
                 } else {
                     this.staleSessionRetryDone = true;
                     this.log.warn(
-                        `Veraltete Session erkannt (HTTP 401) — starte automatischen Neuversuch in 10 s. (${humanMsg})`,
+                        `Stale session detected (HTTP 401) — starting automatic retry in 10 s. (${humanMsg})`,
                     );
                     this.setTimeout(() => {
-                        this.log.info('Starte Neuversuch nach veralteter Session…');
+                        this.log.info('Starting retry after stale session…');
                         this.connectToiCloud().catch(() => {
-                            /* Error-Event wird ausgelöst */
+                            /* error event is emitted */
                         });
                     }, 10_000);
                 }
@@ -1230,6 +1229,7 @@ class Icloud extends utils.Adapter {
             this.config.geocodingApiKey ?? '',
             this.config.geocodingCacheSize ?? 'small',
             (level, msg) => this.log[level](msg),
+            (ms: number) => this.delay(ms),
         );
 
         if (!geocoder.validate()) {

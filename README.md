@@ -126,6 +126,8 @@ The adapter accesses Apple's iCloud services using the same APIs that are used b
 
 Older changes are listed in [CHANGELOG_OLD.md](CHANGELOG_OLD.md).
 
+[Older changelogs can be found there](CHANGELOG_OLD.md)
+
 ## License
 MIT License
 
